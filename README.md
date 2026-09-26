@@ -46,7 +46,7 @@ Alternatively, capture a URL via the Universal Action.
 
 ### Code Images
 
-Turn the code in the clipboard into an image with ray.so via the `code` keyword. Type a language after the keyword (like `code py`) to set it, or leave it empty and ray.so detects it. The theme, padding, dark mode, background and line numbers are set in the Workflow’s Configuration.
+Turn the code in the clipboard into an image with ray.so via the `fredo` keyword. Type a language after the keyword (like `fredo py`) to set it, or leave it empty and ray.so detects it. The theme, padding, dark mode, background and line numbers are set in the Workflow’s Configuration.
 
 ![Opening code in ray.so](images/code.png)
 
@@ -62,7 +62,8 @@ Get the transcript of a YouTube video via the `ytt` keyword. Captions written fo
 ![Getting a YouTube transcript](images/ytt.png)
 
 * <kbd>↩</kbd> Copy the transcript as paragraphs.
-* <kbd>⌘</kbd><kbd>↩</kbd> Copy the transcript with timestamps.
+* <kbd>⌘</kbd><kbd>↩</kbd> Paste the transcript into the frontmost app.
+* <kbd>⇧</kbd><kbd>↩</kbd> Copy the transcript with timestamps.
 * <kbd>⌥</kbd><kbd>↩</kbd> Save it as Markdown with timestamp links, or as plain text.
 * <kbd>⌃</kbd><kbd>↩</kbd> Summarize it with the Local AI workflow, when it is installed.
 * <kbd>⌘</kbd><kbd>Y</kbd> Quick Look the transcript.
@@ -70,6 +71,11 @@ Get the transcript of a YouTube video via the `ytt` keyword. Captions written fo
 Alternatively, get the transcript of a YouTube URL via the Universal Action.
 
 Every keyword can be changed in the Workflow’s Configuration.
+
+### Changes in 1.1
+
+* The default keyword for code images is now `fredo` (it was `code`, which clashes with the Visual Studio Code workflow and app). If you changed the keyword yourself, your setting is kept.
+* YouTube transcripts: <kbd>⌘</kbd><kbd>↩</kbd> now pastes the transcript, like the other text results. Copying with timestamps moved to <kbd>⇧</kbd><kbd>↩</kbd>.
 
 ## Development
 

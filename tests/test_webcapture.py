@@ -1048,7 +1048,11 @@ class YouTubeTests(unittest.TestCase):
         self.assertIn("English · ", main["subtitle"])
         self.assertIn("1:02:05", main["subtitle"])
         self.assertEqual(resolve(main["arg"]), "Hello & welcome. It's a test with a newline.\n\nAfter a pause.\n\nThe end")
-        self.assertEqual(resolve(main["mods"]["cmd"]["arg"]), "[0:00] Hello & welcome.\n[0:02] It's a test with a newline.\n[0:10] After a pause.\n[1:02:05] The end")
+        # 1.1: ⌘↩ pastes the transcript (like tomd); ⇧↩ copies it with timestamps
+        self.assertEqual(main["mods"]["cmd"]["arg"], main["arg"])
+        self.assertIn("Paste", main["mods"]["cmd"]["subtitle"])
+        self.assertIn("⌘↩ Paste · ⇧↩ With timestamps", main["subtitle"])
+        self.assertEqual(resolve(main["mods"]["shift"]["arg"]), "[0:00] Hello & welcome.\n[0:02] It's a test with a newline.\n[0:10] After a pause.\n[1:02:05] The end")
         post = requests_to("/youtubei/v1/player")[n]
         body = json.loads(post["body"])
         self.assertEqual(body["videoId"], "okvideo0001")
@@ -1062,7 +1066,7 @@ class YouTubeTests(unittest.TestCase):
     def test_language_choice(self):
         it = sf("ytt", "https://youtu.be/okvideo0001 de")
         self.assertIn("German (Germany)", it[0]["subtitle"])
-        self.assertEqual(resolve(it[0]["mods"]["cmd"]["arg"]), "[0:00] Hallo und willkommen.\n[1:01] Grüße aus Köln")
+        self.assertEqual(resolve(it[0]["mods"]["shift"]["arg"]), "[0:00] Hallo und willkommen.\n[1:01] Grüße aus Köln")
         it = sf("ytt", "okvideo0001", ytt_language="fr, de")
         self.assertIn("German", it[0]["subtitle"])
         it = sf("ytt", "https://youtu.be/okvideo0001 en auto")
@@ -1219,6 +1223,21 @@ class BuildTests(unittest.TestCase):
         targets = [uids[c["destinationuid"]]["type"] for c in info["connections"][shot]]
         self.assertEqual(targets.count("alfred.workflow.output.notification"), 3)
         self.assertNotIn("images/", info["readme"])
+        # 1.1: the code-image keyword defaults to "fredo" (the variable name stays for saved settings)
+        kw = next(c for c in info["userconfigurationconfig"] if c["variable"] == "keyword_code")
+        self.assertEqual((kw["config"]["default"], kw["config"]["placeholder"]), ("fredo", "fredo"))
+        self.assertIn("`fredo` keyword", info["readme"])
+        self.assertNotIn("`code` keyword", info["readme"])
+        # ytt: ↩ copies, ⌘↩ pastes, ⇧↩ copies with timestamps, like the other text results
+        ytt = next(o["uid"] for o in info["objects"] if o["config"].get("keyword") == "{var:keyword_ytt}")
+        routes = {}
+        for c in info["connections"][ytt]:
+            dest = uids[c["destinationuid"]]
+            nxt = [uids[d["destinationuid"]]["config"].get("autopaste") for d in info["connections"].get(dest["uid"], [])]
+            routes[c["modifiers"]] = nxt
+        self.assertEqual(routes[0], [False])
+        self.assertEqual(routes[1048576], [True])
+        self.assertEqual(routes[131072], [False])
 
     def test_no_binaries(self):
         for base, _, files in os.walk(SRC):

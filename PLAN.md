@@ -1,6 +1,6 @@
 # Web Capture — Plan
 
-**Priority tier:** 2 · **Bundle ID:** `io.github.x-o-r-r-o.web-capture` · **Keywords:** `tomd`, `shot`, `code`, `ytt`
+**Priority tier:** 2 · **Bundle ID:** `io.github.x-o-r-r-o.web-capture` · **Keywords:** `tomd`, `shot`, `fredo`, `ytt`
 
 ## Why build it
 Raycast demand this workflow replaces (downloads, 2026-09-26):
@@ -19,7 +19,7 @@ Raycast demand this workflow replaces (downloads, 2026-09-26):
 ## Features (v1.0)
 - [x] `tomd` frontmost tab / URL → clean Markdown (Readability) to clipboard or file
 - [x] `shot` full-page screenshot of URL (WebKit via JXA; headless Chromium hung on the test Mac, so it isn't used)
-- [x] `code` selected code → ray.so image (open prefilled URL)
+- [x] `fredo` (was `code`) selected code → ray.so image (open prefilled URL)
 - [x] `ytt` fetch transcript of current YouTube tab; optional AI summary (hands off to Local AI workflow)
 
 ## Tech

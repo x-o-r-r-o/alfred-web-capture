@@ -87,9 +87,19 @@
 			</dict>
 			<dict>
 				<key>destinationuid</key>
-				<string>33C52F3B-2BB3-5E7A-B30D-A084D52F96A6</string>
+				<string>83A666DA-AE9D-5BD6-B891-458CFE1F4D75</string>
 				<key>modifiers</key>
 				<integer>1048576</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>33C52F3B-2BB3-5E7A-B30D-A084D52F96A6</string>
+				<key>modifiers</key>
+				<integer>131072</integer>
 				<key>modifiersubtext</key>
 				<string></string>
 				<key>vitoclose</key>
@@ -854,7 +864,7 @@ Alternatively, capture a URL via the Universal Action.
 
 ### Code Images
 
-Turn the code in the clipboard into an image with ray.so via the `code` keyword. Type a language after the keyword (like `code py`) to set it, or leave it empty and ray.so detects it. The theme, padding, dark mode, background and line numbers are set in the Workflow’s Configuration.
+Turn the code in the clipboard into an image with ray.so via the `fredo` keyword. Type a language after the keyword (like `fredo py`) to set it, or leave it empty and ray.so detects it. The theme, padding, dark mode, background and line numbers are set in the Workflow’s Configuration.
 
 * &lt;kbd&gt;↩&lt;/kbd&gt; Open the code in ray.so.
 * &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy the ray.so link.
@@ -866,7 +876,8 @@ Alternatively, turn selected code into an image via the Universal Action.
 Get the transcript of a YouTube video via the `ytt` keyword. Captions written for the video in your languages (set in the Workflow’s Configuration) come first, then auto-generated ones. The other languages are listed below the transcript: type a language code after the URL (like `ytt https://youtu.be/… de`) to pick one, and add `auto` for auto-generated captions.
 
 * &lt;kbd&gt;↩&lt;/kbd&gt; Copy the transcript as paragraphs.
-* &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy the transcript with timestamps.
+* &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Paste the transcript into the frontmost app.
+* &lt;kbd&gt;⇧&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy the transcript with timestamps.
 * &lt;kbd&gt;⌥&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Save it as Markdown with timestamp links, or as plain text.
 * &lt;kbd&gt;⌃&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Summarize it with the Local AI workflow, when it is installed.
 * &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;Y&lt;/kbd&gt; Quick Look the transcript.
@@ -874,6 +885,11 @@ Get the transcript of a YouTube video via the `ytt` keyword. Captions written fo
 Alternatively, get the transcript of a YouTube URL via the Universal Action.
 
 Every keyword can be changed in the Workflow’s Configuration.
+
+### Changes in 1.1
+
+* The default keyword for code images is now `fredo` (it was `code`, which clashes with the Visual Studio Code workflow and app). If you changed the keyword yourself, your setting is kept.
+* YouTube transcripts: &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; now pastes the transcript, like the other text results. Copying with timestamps moved to &lt;kbd&gt;⇧&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt;.
 </string>
 	<key>uidata</key>
 	<dict>
@@ -1069,9 +1085,9 @@ Every keyword can be changed in the Workflow’s Configuration.
 			<key>config</key>
 			<dict>
 				<key>default</key>
-				<string>code</string>
+				<string>fredo</string>
 				<key>placeholder</key>
-				<string>code</string>
+				<string>fredo</string>
 				<key>required</key>
 				<true/>
 				<key>trim</key>

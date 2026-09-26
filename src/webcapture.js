@@ -1175,14 +1175,15 @@ function yttItems(query) {
   const folder = saveFolder().replace($.NSHomeDirectory().js, "~");
   const items = [{
     title: oneLine(r.meta.title),
-    subtitle: `${r.label} · ${plural(t.words, "word")}${r.meta.seconds ? ` · ${timestamp(r.meta.seconds)}` : ""} · ↩ Copy · ⌘↩ With timestamps · ⌥↩ Save${ai ? " · ⌃↩ Summarize" : ""}`,
+    subtitle: `${r.label} · ${plural(t.words, "word")}${r.meta.seconds ? ` · ${timestamp(r.meta.seconds)}` : ""} · ↩ Copy · ⌘↩ Paste · ⇧↩ With timestamps · ⌥↩ Save${ai ? " · ⌃↩ Summarize" : ""}`,
     arg: plainArg,
     valid: true,
     quicklookurl: savePath,
     text: textField(t.plain),
     icon: { path: "icons/ytt.png" },
     mods: {
-      cmd: { arg: stampedArg, valid: true, subtitle: "Copy with a timestamp on every line" },
+      cmd: { arg: plainArg, valid: true, subtitle: "Paste the transcript into the frontmost app" },
+      shift: { arg: stampedArg, valid: true, subtitle: "Copy with a timestamp on every line" },
       alt: { arg: savePath, valid: true, subtitle: `Save as .${format} to ${folder} and reveal in Finder`, variables: { save_name: safeFileName(`${r.meta.title} transcript`, format) } },
       ctrl: ai
         ? { arg: handoff, valid: true, subtitle: "Summarize with the Local AI workflow" }

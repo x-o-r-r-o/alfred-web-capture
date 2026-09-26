@@ -38,8 +38,8 @@
       "label": "",
       "description": "Code image with ray.so",
       "config": {
-        "default": "code",
-        "placeholder": "code",
+        "default": "fredo",
+        "placeholder": "fredo",
         "required": true,
         "trim": true
       }
@@ -608,8 +608,13 @@
     },
     {
       "from": "sf_ytt",
-      "to": "resolve",
+      "to": "resolve_paste",
       "mod": "cmd"
+    },
+    {
+      "from": "sf_ytt",
+      "to": "resolve",
+      "mod": "shift"
     },
     {
       "from": "sf_ytt",
