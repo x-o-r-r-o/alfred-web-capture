@@ -1273,7 +1273,8 @@ class MarkdownConverter {
         const text = this.children(td, sub).replace(/\n+/g, "<br>").replace(/\|/g, "\\|").trim();
         const span = Math.min(parseInt(attr(td, "colspan"), 10) || 1, 50);
         const rspan = Math.min(parseInt(attr(td, "rowspan"), 10) || 1, 500);
-        const align = (attr(td, "align") || (/text-align:\s*(left|right|center)/i.exec(attr(td, "style")) || [])[1] || "").toLowerCase();
+        let align = (attr(td, "align") || (/text-align:\s*(left|right|center)/i.exec(attr(td, "style")) || [])[1] || "").toLowerCase();
+        if (!/^(left|right|center)$/.test(align)) align = ""; // align="constructor" must not reach an object lookup
         if (align && aligns[col] === undefined) aligns[col] = align;
         for (let s = 0; s < span; s++) {
           cells.push(s === 0 ? text : "");

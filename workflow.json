@@ -60,7 +60,7 @@
       "type": "filepicker",
       "variable": "save_folder",
       "label": "Save folder",
-      "description": "Where ⌥↩ saves Markdown files, transcripts and screenshots.",
+      "description": "Where screenshots are saved, and where ⌥↩ saves Markdown files and transcripts.",
       "config": {
         "default": "~/Downloads",
         "filtermode": 1,
@@ -72,7 +72,7 @@
       "type": "popupbutton",
       "variable": "fetch_timeout",
       "label": "Network timeout",
-      "description": "",
+      "description": "How long to wait for a page, YouTube or a screenshot to load.",
       "config": {
         "default": "20",
         "pairs": [

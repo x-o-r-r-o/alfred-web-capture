@@ -72,14 +72,24 @@ function cacheDir() {
 // ---------- output helpers ----------
 
 function info(title, subtitle, icon = "info", extra = {}) {
-  return Object.assign({ title, subtitle: subtitle || "", valid: false, icon: { path: `icons/${icon}.png` } }, extra);
+  return Object.assign({ title: oneLine(title, 200), subtitle: oneLine(subtitle || "", 300), valid: false, icon: { path: `icons/${icon}.png` } }, extra);
 }
 function output(items, extra = {}) {
   return JSON.stringify(Object.assign({ skipknowledge: true, items }, extra));
 }
+// Display strings: no control characters or bidi overrides (page titles can carry them), and never cut
+// inside an emoji (a lone surrogate makes Alfred reject the JSON). The real value stays in arg.
 function oneLine(s, max = 120) {
-  const t = String(s).replace(/\s+/g, " ").trim();
-  return t.length > max ? t.slice(0, max - 1) + "…" : t;
+  const t = String(s).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, " ").replace(/[\u202a-\u202e\u2066-\u2069\ufeff]/g, "")
+    .replace(/[\ud800-\udbff][\udc00-\udfff]|[\ud800-\udfff]/g, (m) => (m.length === 2 ? m : "\ufffd")).replace(/\s+/g, " ").trim();
+  return t.length > max ? cutText(t, max - 1) + "…" : t;
+}
+function cutText(s, n) {
+  return s.length > n && /[\ud800-\udbff]/.test(s[n - 1]) ? s.slice(0, n - 1) : s.slice(0, n);
+}
+// Lookups of strings from users or servers: never through Object.prototype ("constructor", "__proto__").
+function own(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj, key) ? obj[key] : undefined;
 }
 function plural(n, word) {
   return `${n.toLocaleString("en-US")} ${word}${n === 1 ? "" : "s"}`;
@@ -94,7 +104,7 @@ function hashKey(s) {
   return h.toString(16).padStart(8, "0");
 }
 function safeFileName(s, ext) {
-  const clean = String(s).replace(/[\/\\:*?"<>|\u0000-\u001f]+/g, " ").replace(/^[.\s]+/, "").replace(/\s+/g, " ").trim();
+  const clean = String(s).replace(/[\u202a-\u202e\u2066-\u2069]/g, "").replace(/[\/\\:*?"<>|\u0000-\u001f\u007f]+/g, " ").replace(/^[.\s]+/, "").replace(/\s+/g, " ").trim();
   const base = Array.from(clean).slice(0, 120).join("").trim() || "Untitled"; // never split an emoji
   return `${base}.${ext}`;
 }
@@ -123,8 +133,8 @@ function pruneCache() {
   }
 }
 function textField(value) {
-  if (value.length > LARGE) return { copy: "Result too large for ⌘C: press ↩ to copy it", largetype: value.slice(0, 5000) + "…" };
-  return { copy: value, largetype: value.length > 5000 ? value.slice(0, 5000) + "…" : value };
+  if (value.length > LARGE) return { copy: "Result too large for ⌘C: press ↩ to copy it", largetype: cutText(value, 5000) + "…" };
+  return { copy: value, largetype: value.length > 5000 ? cutText(value, 5000) + "…" : value };
 }
 
 // ---------- processes ----------
@@ -370,7 +380,7 @@ function pickBrowser() {
   for (let i = 0; i < apps.count; i++) {
     const a = apps.objectAtIndex(i);
     const bid = a.bundleIdentifier;
-    if (!bid.isNil() && BROWSER_BY_ID[bid.js]) running[a.processIdentifier] = BROWSER_BY_ID[bid.js];
+    if (!bid.isNil() && own(BROWSER_BY_ID, bid.js)) running[a.processIdentifier] = BROWSER_BY_ID[bid.js];
   }
   if (!Object.keys(running).length) return null;
   const front = ws.frontmostApplication;
@@ -538,10 +548,10 @@ function convertPage(src) {
       const text = decodeHTML(r.data, r.contentType).text;
       return { title: fileLabel(finalURL), markdown: text.endsWith("\n") ? text : text + "\n", full: null, words: countWords(text), textLength: text.length, url: finalURL, note: "Plain text: copied as is" };
     }
-    if (CODE_TYPES[type] || (FEED_TYPE.test(type) && type !== "application/xhtml+xml")) {
+    if (own(CODE_TYPES, type) || (FEED_TYPE.test(type) && type !== "application/xhtml+xml")) {
       const text = decodeHTML(r.data, r.contentType).text.replace(/\n$/, "");
       const fence = (text.match(/`{3,}/g) || []).reduce((f, m) => (m.length >= f.length ? "`".repeat(m.length + 1) : f), "```");
-      return { title: fileLabel(finalURL), markdown: `${fence}${CODE_TYPES[type] || "xml"}\n${text}\n${fence}\n`, full: null, words: countWords(text), textLength: text.length, url: finalURL, note: `${type} wrapped in a code block` };
+      return { title: fileLabel(finalURL), markdown: `${fence}${own(CODE_TYPES, type) || "xml"}\n${text}\n${fence}\n`, full: null, words: countWords(text), textLength: text.length, url: finalURL, note: `${type} wrapped in a code block` };
     }
     if (type && !/html|xml/.test(type)) {
       const kind = /pdf/.test(type) ? "PDF" : /^image\//.test(type) ? "image" : /^video\//.test(type) ? "video" : /^audio\//.test(type) ? "audio file" : `file (${type})`;
@@ -701,7 +711,7 @@ const RAY_THEMES = { candy: "Candy", breeze: "Breeze", midnight: "Midnight", sun
 function languageKey(s) {
   const k = String(s || "").trim().toLowerCase();
   if (RAY_LANGUAGES.includes(k)) return k;
-  return LANG_ALIASES[k] || null;
+  return own(LANG_ALIASES, k) || null;
 }
 
 function base64URL(text) {
@@ -722,7 +732,7 @@ function tidyCode(text) {
 // ray.so reads its state from the URL fragment (jotai-location atomWithHash):
 // code = URL-safe Base64 of UTF-8, theme = theme key, darkMode/background = true|false, padding = 16|32|64|128, language = key.
 function raySoURL(code, language) {
-  const theme = RAY_THEMES[env("code_theme", "candy")] ? env("code_theme", "candy") : "candy";
+  const theme = own(RAY_THEMES, env("code_theme", "candy")) ? env("code_theme", "candy") : "candy";
   const padding = ["16", "32", "64", "128"].includes(env("code_padding", "64")) ? env("code_padding", "64") : "64";
   const params = [
     `theme=${theme}`,
@@ -758,7 +768,7 @@ function codeItems(query) {
   const code = tidyCode(text || "");
   if (!code.trim()) return [info("Copy some code first", "Or select code and use the Universal Action, or type code after the keyword")];
   const lines = code.split("\n").length;
-  const theme = RAY_THEMES[env("code_theme", "candy")] || "Candy";
+  const theme = own(RAY_THEMES, env("code_theme", "candy")) || "Candy";
   const items = [];
   const add = (lk, title) => {
     const url = raySoURL(code, lk);
@@ -769,7 +779,7 @@ function codeItems(query) {
       subtitle: `${warn}${plural(lines, "line")} ${source === "clipboard" ? "from the clipboard" : ""} · ${theme} · ${lk || "language auto-detected"} · ↩ Open · ⌘↩ Copy link`.replace(/ {2,}/g, " "),
       arg: url,
       valid: true,
-      text: { copy: url, largetype: code.slice(0, 2000) },
+      text: { copy: url, largetype: cutText(code, 2000) },
       quicklookurl: url,
       icon: { path: "icons/code.png" },
       mods: { cmd: { arg: url, valid: true, subtitle: "Copy the ray.so link" } },
@@ -800,6 +810,7 @@ function ytBase() {
   return env("WC_YT_BASE", "https://www.youtube.com");
 }
 
+const YT_BACKOFF = 600; // seconds without YouTube requests after a 429 or a bot check
 const YT_HEADERS = ["Cookie: CONSENT=YES+cb; SOCS=CAI"]; // skip the EU consent interstitial
 
 function timestamp(sec) {
@@ -892,10 +903,10 @@ function youtubeError(status, reason, subreason) {
 function fetchTranscript(id, prefs, preferAuto) {
   const page = fetchURL(`${ytBase()}/watch?v=${id}&hl=en`, { headers: YT_HEADERS });
   if (page.curl) return { error: page.error };
-  if (page.status === 429) return { error: "YouTube is rate-limiting this Mac (HTTP 429)", subtitle: "Try again later" };
+  if (page.status === 429) return { error: "YouTube is rate-limiting this Mac (HTTP 429)", subtitle: "Try again later", backoff: true };
   if (!page.ok) return { error: httpError(page.status) };
   const html = dataToString(page.data) || "";
-  if (/class="g-recaptcha"/.test(html)) return { error: "YouTube asks to confirm you’re not a bot", subtitle: "YouTube is blocking this network for now: try again in an hour, or from another network" };
+  if (/class="g-recaptcha"/.test(html)) return { error: "YouTube asks to confirm you’re not a bot", subtitle: "YouTube is blocking this network for now: try again in an hour, or from another network", backoff: true };
   if (/action="https:\/\/consent\.youtube\.com\/s"/.test(html)) {
     return { error: "YouTube shows its cookie consent page", subtitle: "Open youtube.com in your browser once and accept or reject cookies, then try again" };
   }
@@ -908,7 +919,7 @@ function fetchTranscript(id, prefs, preferAuto) {
     ua: "com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip",
   });
   if (player.curl) return { error: player.error };
-  if (player.status === 429) return { error: "YouTube is rate-limiting this Mac (HTTP 429)", subtitle: "Try again later" };
+  if (player.status === 429) return { error: "YouTube is rate-limiting this Mac (HTTP 429)", subtitle: "Try again later", backoff: true };
   if (!player.ok) return { error: httpError(player.status) };
   let data;
   try {
@@ -928,7 +939,7 @@ function fetchTranscript(id, prefs, preferAuto) {
   if (ps.status && ps.status !== "OK") {
     const sub = ((((ps.errorScreen || {}).playerErrorMessageRenderer || {}).subreason || {}).runs || []).map((x) => x.text || "").join("");
     const [error, subtitle] = youtubeError(ps.status, ps.reason, sub);
-    return { error, subtitle, meta };
+    return { error, subtitle, meta, backoff: /not a bot/.test(error) };
   }
   const tracks = (((data.captions || {}).playerCaptionsTracklistRenderer || {}).captionTracks || []).filter((t) => t.baseUrl);
   if (!tracks.length) return { error: "No transcript: this video has no captions", subtitle: meta.title, meta };
@@ -942,7 +953,7 @@ function fetchTranscript(id, prefs, preferAuto) {
   if (!/^https?:\/\//.test(url)) url = ytBase() + url;
   const tt = fetchURL(url, { headers: YT_HEADERS, accept: "*/*" });
   if (tt.curl) return { error: tt.error, meta };
-  if (!tt.ok) return { error: tt.status === 429 ? "YouTube is rate-limiting this Mac (HTTP 429)" : httpError(tt.status), meta };
+  if (!tt.ok) return { error: tt.status === 429 ? "YouTube is rate-limiting this Mac (HTTP 429)" : httpError(tt.status), meta, backoff: tt.status === 429 };
   const snippets = parseTimedText(dataToString(tt.data) || "");
   if (!snippets.length) {
     return { error: "The transcript is empty", subtitle: `YouTube returned no caption text${tracks.length > 1 ? ": pick another language below" : ": try again later"}`, meta, others: otherTracks(tracks, choice.track) };
@@ -1047,9 +1058,23 @@ function yttItems(query) {
       r = null;
     }
   }
+  // After a 429 or a bot check, every process waits before asking YouTube again: Script Filters run on
+  // each keystroke, and retrying at once only prolongs the block.
+  const backoffPath = `${cacheDir()}/yt-backoff.json`;
+  const waited = ageSeconds(backoffPath);
+  if (!r && waited < YT_BACKOFF) {
+    try {
+      const b = JSON.parse(readFile(backoffPath));
+      const mins = Math.max(1, Math.ceil((YT_BACKOFF - waited) / 60));
+      r = { error: String(b.error || "YouTube is rate-limiting this Mac"), subtitle: `Web Capture waits ${plural(mins, "more minute")} before asking YouTube again` };
+    } catch (e) {
+      r = null;
+    }
+  }
   if (!r) {
     r = fetchTranscript(id, prefs, preferAuto);
     if (!r.error) writeFile(cachePath, JSON.stringify(r));
+    else if (r.backoff) writeFile(backoffPath, JSON.stringify({ error: r.error }));
   }
   // other caption languages, offered below the transcript (or below an error about the chosen one)
   const languageRows = () => {
@@ -1059,8 +1084,8 @@ function yttItems(query) {
       if (seen.has(k)) continue;
       seen.add(k);
       rows.push({
-        title: `${o.name}${o.asr && !/auto/i.test(o.name) ? " (auto-generated)" : ""}`,
-        subtitle: `Show the ${o.code} transcript${o.asr ? " (auto-generated)" : ""}`,
+        title: `${oneLine(o.name, 80)}${o.asr && !/auto/i.test(o.name) ? " (auto-generated)" : ""}`,
+        subtitle: `Show the ${oneLine(o.code, 20)} transcript${o.asr ? " (auto-generated)" : ""}`,
         autocomplete: `${urlToken || (src.from === "browser" ? "" : src.url)} ${o.code}${o.asr ? " auto" : ""}`.trim() + " ",
         valid: false,
         icon: { path: "icons/lang.png" },
@@ -1082,7 +1107,7 @@ function yttItems(query) {
   const folder = saveFolder().replace($.NSHomeDirectory().js, "~");
   const items = [{
     title: oneLine(r.meta.title),
-    subtitle: `${r.label} · ${plural(t.words, "word")}${r.meta.seconds ? ` · ${timestamp(r.meta.seconds)}` : ""} · ↩ Copy · ⌘↩ With timestamps · ⌥↩ Save · ⌃↩ Summarize`,
+    subtitle: `${r.label} · ${plural(t.words, "word")}${r.meta.seconds ? ` · ${timestamp(r.meta.seconds)}` : ""} · ↩ Copy · ⌘↩ With timestamps · ⌥↩ Save${ai ? " · ⌃↩ Summarize" : ""}`,
     arg: plainArg,
     valid: true,
     quicklookurl: savePath,

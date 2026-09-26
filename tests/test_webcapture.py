@@ -138,6 +138,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, b"%PDF-1.4\n%fake", "application/pdf")
         if p == "/pic.png":
             return self.send(200, png_bytes(), "image/png")
+        if p == "/proto-type":
+            return self.send(200, "hello", "constructor")
         if p == "/notes.txt":
             return self.send(200, "# Notes\n\nPlain *markdown* text\n", "text/plain; charset=utf-8")
         if p == "/data.json":
@@ -443,6 +445,27 @@ class TomdTests(unittest.TestCase):
         it = sf("tomd", f"{BASE}/blob")
         self.assertEqual(it[0]["title"], "Not a web page: this URL is a file (application/octet-stream)")
 
+    def test_display_strings_are_sanitised(self):
+        # final review: bidi overrides and control characters from page titles reached Alfred's titles,
+        # and cutting at 120 UTF-16 units could leave a lone surrogate (Alfred rejects the JSON)
+        title = "\u202eevil\u0007 " + "x" * 112 + "🎉🎉🎉"
+        html = f"<html><head><title>{title}</title></head><body><article><p>" + "Text. " * 60 + "</p></article></body></html>"
+        out = run("./webcapture.js", ["tomd", ""], WC_TEST_TAB=tab(f"{BASE}/bidi", title, html=html), tomd_browser_html="1")
+        self.assertNotRegex(out, r"\\ud[89ab][0-9a-f]{2}(?!\\ud[c-f])")
+        it = json.loads(out)["items"]
+        self.assertNotIn("\u202e", it[0]["title"])
+        self.assertNotIn("\u0007", it[0]["title"])
+        self.assertTrue(it[0]["title"].startswith("evil x"), it[0]["title"])
+        self.assertNotIn("\u202e", os.path.basename(it[0]["quicklookurl"]))
+        shot = sf("shot", "", WC_TEST_TAB=tab("https://x.example/", "a" * 77 + "🎉🎉"))
+        json.dumps(shot[0]["title"]).encode("utf-8")  # a lone surrogate would raise here
+        self.assertTrue(shot[0]["title"].endswith("🎉…") or shot[0]["title"].endswith("a…"), shot[0]["title"])
+
+    def test_content_type_named_like_a_prototype_property(self):
+        it = sf("tomd", f"{BASE}/proto-type")
+        self.assertNotIn("native code", json.dumps(it))
+        self.assertEqual(it[0]["title"], "Not a web page: this URL is a file (constructor)")
+
     def test_emoji_title_truncation(self):
         # audit 1: cutting a long title at 120 UTF-16 units could split an emoji and break the file name
         title = "x" * 119 + "🎉🎉"
@@ -585,6 +608,10 @@ class MarkdownTests(unittest.TestCase):
         with open(path, "w") as f:
             f.write(html)
         return run("./webcapture.js", ["convert", path, url] + (["full"] if full else []), tomd_front_matter="0")
+
+    def test_table_align_named_like_a_prototype_property(self):
+        md = self.convert('<table><tr><th align="constructor">A</th><th align="__proto__">B</th><th align="RIGHT">C</th></tr><tr><td>1</td><td>2</td><td>3</td></tr></table>')
+        self.assertIn("| A | B | C |\n| --- | --- | ---: |", md)
 
     def test_entities(self):
         self.assertIn('Entities: \\<tag> "quoted" — 😀 – \xa0x \\&unknown; AT&T', self.md)
@@ -918,6 +945,17 @@ class CodeTests(unittest.TestCase):
         self.assertIn("java", [self.fragment(i["arg"]).get("language") for i in it])
         self.assertIn("javascript", [self.fragment(i["arg"]).get("language") for i in it])
 
+    def test_prototype_names_are_not_languages(self):
+        # final review: "constructor" and "__proto__" were looked up on Object.prototype
+        for word in ["constructor", "__proto__", "hasOwnProperty"]:
+            it = sf("code", word, WC_TEST_CLIPBOARD="print(1)")
+            for i in it:
+                self.assertNotIn("native code", json.dumps(i))
+                self.assertNotIn("[object Object]", json.dumps(i))
+                self.assertNotIn("language", self.fragment(i["arg"]))
+        it = sf("code", "py", WC_TEST_CLIPBOARD="print(1)", code_theme="constructor")
+        self.assertEqual(self.fragment(it[0]["arg"])["theme"], "candy")
+
     def test_long_code_warning(self):
         # audit 4: warn when the ray.so link passes 8 KB (was 20,000 characters of code)
         it = sf("code", "", WC_TEST_CLIPBOARD="x = 1\n" * 1500)
@@ -982,9 +1020,25 @@ class YouTubeTests(unittest.TestCase):
                  "potoken0001": "YouTube hides these captions from scripts", "consentpage": "YouTube shows its cookie consent page",
                  "membersonly": "Members-only video", "pagereason1": "YouTube can’t play this video"}
         for vid, title in cases.items():
+            clear_cache()  # a 429 or bot check starts a back-off (see test_backoff_after_429)
             it = sf("ytt", f"https://youtu.be/{vid}")
             self.assertEqual(it[0]["title"], title, vid)
             self.assertIs(it[0]["valid"], False)
+
+    def test_backoff_after_429(self):
+        # final review: every keystroke retried YouTube after a 429 or bot check, prolonging the block
+        for vid in ["ratelimit01", "botcheck001", "botreason01"]:
+            clear_cache()
+            first = sf("ytt", f"https://youtu.be/{vid}")[0]["title"]
+            n = len(REQUESTS)
+            it = sf("ytt", "https://youtu.be/okvideo0001")
+            self.assertEqual(len(REQUESTS), n, vid)  # no request while backing off
+            self.assertEqual(it[0]["title"], first, vid)
+            self.assertIn("before asking YouTube again", it[0]["subtitle"])
+        # other errors don't back off
+        clear_cache()
+        sf("ytt", "https://youtu.be/private0001")
+        self.assertEqual(sf("ytt", "https://youtu.be/okvideo0001")[0]["title"], 'Fixture "Talk" & Demo')
 
     def test_empty_transcript_offers_other_languages(self):
         it = sf("ytt", "https://youtu.be/emptytrack1")

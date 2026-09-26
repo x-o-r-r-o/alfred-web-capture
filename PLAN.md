@@ -35,6 +35,24 @@ Raycast demand this workflow replaces (downloads, 2026-09-26):
 3. [x] Workflow Configuration, icons, error states (no network / missing dependency)
 4. README with screenshots, `tools/build.py --package` release, forum post, then Gallery submission when invited
 
+## Known limitations
+- Screenshots render the page in a private WebKit view: no browser logins, cookies or extensions (ad blockers).
+- Firefox, Zen and LibreWolf can’t share their tabs over AppleScript; the clipboard is used instead.
+- “Use browser page content” needs “Allow JavaScript from Apple Events” in the browser, and Automation permission for Alfred.
+- YouTube: captions that need a proof-of-origin token can’t be read by scripts; bot checks and 429s block a network for a while (Web Capture then waits 10 minutes before asking again). The Innertube ANDROID client version may need updating when YouTube changes it.
+- ray.so keeps the code in the link, so very long code makes very long links.
+- The code Universal Action on a single word that is a language name (like “swift”) uses the clipboard with that language.
+- Pages over 8 MB are cut; pages over 2 MB get no whole-page version.
+
+## Verify in real Alfred
+- [ ] The four Universal Actions appear for URLs / text and fill the Script Filter query.
+- [ ] ⌘↩ pastes into the frontmost app (Markdown, links, transcripts); results over 50 KB come back through resolve.sh.
+- [ ] ⌘Y previews the cached .md / transcript; ⌘C and Large Type on large results.
+- [ ] Screenshot notifications (“Taking a screenshot…” and the result); ⌘↩ copies an image that pastes into Mail/Slack.
+- [ ] ⌃↩ hands the transcript to the Local AI workflow’s External Trigger.
+- [ ] First run asks for Automation permission per browser; the hint appears when it is denied.
+- [ ] Keyword changes in the Workflow’s Configuration take effect.
+
 ## Release checklist (Alfred forum + Gallery)
 Sources: alfred.app/submit, alfred.app/submit/styleguide, alfred.app/submit/screenshots, alfredforum.com topics 23976 and 23388.
 

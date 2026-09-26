@@ -6,7 +6,7 @@ case "$1" in
     f="${1#wcfile:}"
     case "$f" in
       *"/../"*) ;;
-      "$alfred_workflow_cache"/*) [ -f "$f" ] && cat "$f" ;;
+      "$alfred_workflow_cache"/*) [ -n "$alfred_workflow_cache" ] && [ -f "$f" ] && cat "$f" ;;
       *) printf '%s' "$1" ;;
     esac ;;
   *) printf '%s' "$1" ;;

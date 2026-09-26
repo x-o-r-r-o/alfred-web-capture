@@ -1120,7 +1120,7 @@ Every keyword can be changed in the Workflow’s Configuration.
 				<false/>
 			</dict>
 			<key>description</key>
-			<string>Where ⌥↩ saves Markdown files, transcripts and screenshots.</string>
+			<string>Where screenshots are saved, and where ⌥↩ saves Markdown files and transcripts.</string>
 			<key>label</key>
 			<string>Save folder</string>
 			<key>type</key>
@@ -1154,7 +1154,7 @@ Every keyword can be changed in the Workflow’s Configuration.
 				</array>
 			</dict>
 			<key>description</key>
-			<string></string>
+			<string>How long to wait for a page, YouTube or a screenshot to load.</string>
 			<key>label</key>
 			<string>Network timeout</string>
 			<key>type</key>
