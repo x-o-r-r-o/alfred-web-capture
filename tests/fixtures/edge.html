@@ -1,0 +1,33 @@
+<html><head><title>Edge cases</title><base href="https://docs.example.org/guide/"></head>
+<body><main>
+<h2 id="intro"><a class="anchor" href="#intro">#</a>Intro &amp; setup</h2>
+<p>Entities: &lt;tag&gt; &quot;quoted&quot; &#8212; &#x1F600; &#150; &nbsp;x &unknown; AT&amp;T</p>
+<p><strong>bold <strong>nested</strong></strong> and <em>it <i>nested</i></em> and <b> spaced </b>word</p>
+<p>Code: <code>a `tick` b</code> and <code>`edge`</code> and <kbd>Cmd</kbd></p>
+<pre>plain ```fence``` inside
+  indented</pre>
+<pre class="highlight-source-rust"><code>fn main() {}</code></pre>
+<div class="highlight"><pre data-lang="bash"><span>echo</span> <span>"hi"</span><br>ls</pre></div>
+<ol start="7"><li>seven</li><li value="10">ten</li><li>eleven<p>second para</p></li></ol>
+<ul><li>outer<ul><li>inner<ul><li>deepest</li></ul></li></ul></li></ul>
+<blockquote>outer<blockquote>inner quote</blockquote></blockquote>
+<table><caption>Sizes</caption>
+<tr><th>Name</th><th style="text-align: center">Size</th><th>Note</th></tr>
+<tr><td rowspan="2">A|B</td><td>1</td><td>x<br>y</td></tr>
+<tr><td>2</td><td>z</td></tr>
+</table>
+<table role="presentation"><tr><td><p>Layout cell text.</p></td></tr></table>
+<p><a href="page2.html">relative</a> <a href="/root">root</a> <a href="//cdn.example.org/x">proto</a> <a href="javascript:alert(1)">js link</a> <a href="https://example.com/a b(c)">spaces</a></p>
+<p><img srcset="small.jpg 480w, large.jpg 1080w" alt="set"> <picture><source srcset="pic.webp"><img alt="pic"></picture></p>
+<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0" title="Demo video"></iframe>
+<noscript><img src="real.png" alt="real"></noscript>
+<dl><dt>Term</dt><dd>Definition</dd></dl>
+<p>Math: <math alttext="x^2"><mi>x</mi></math></p>
+<p># not a heading<br>1. not a list<br>- not a bullet<br>+ plus</p>
+<p>Unclosed <b>bold<p>next para</p>
+<script>document.write("<div>junk</div>")</script>
+<!-- comment <p>hidden</p> -->
+<p hidden>hidden para</p><p style="display: none">also hidden</p>
+<p><![CDATA[cdata text]]></p>
+<div><input type="text" value="field"><button>Click</button></div>
+</main></body></html>

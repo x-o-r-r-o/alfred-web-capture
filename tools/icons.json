@@ -1,0 +1,14 @@
+{
+  "icon": ["doc.viewfinder", "#0EA5E9"],
+  "md": ["text.document", "#2563EB"],
+  "page": ["doc.richtext", "#475569"],
+  "link": ["link", "#0891B2"],
+  "shot": ["camera.viewfinder", "#7C3AED"],
+  "screen": ["macwindow", "#7C3AED"],
+  "phone": ["iphone", "#7C3AED"],
+  "code": ["chevron.left.forwardslash.chevron.right", "#DB2777"],
+  "ytt": ["captions.bubble", "#DC2626"],
+  "lang": ["globe", "#0D9488"],
+  "info": ["info.circle", "#64748B"],
+  "error": ["exclamationmark.triangle", "#DC2626"]
+}

@@ -1,0 +1,9 @@
+{
+  "playabilityStatus": {"status": "OK"},
+  "videoDetails": {"videoId": "okvideo0001", "title": "Fixture \"Talk\" & Demo", "author": "Test Channel", "lengthSeconds": "3725"},
+  "captions": {"playerCaptionsTracklistRenderer": {"captionTracks": [
+    {"baseUrl": "{BASE}/api/timedtext?v=okvideo0001&lang=en&fmt=srv3", "name": {"runs": [{"text": "English"}]}, "languageCode": "en", "isTranslatable": true},
+    {"baseUrl": "{BASE}/api/timedtext?v=okvideo0001&lang=en&kind=asr", "name": {"runs": [{"text": "English (auto-generated)"}]}, "languageCode": "en", "kind": "asr", "isTranslatable": true},
+    {"baseUrl": "{BASE}/api/timedtext?v=okvideo0001&lang=de-DE", "name": {"simpleText": "German (Germany)"}, "languageCode": "de-DE", "isTranslatable": true}
+  ]}}
+}

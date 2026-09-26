@@ -7,46 +7,960 @@
 	<key>category</key>
 	<string>Productivity</string>
 	<key>connections</key>
-	<dict/>
+	<dict>
+		<key>091D4C92-B0D9-5877-BF2B-720565FA03A1</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>C0F596B3-D647-56B5-BC65-8371BD8B266B</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>1B5496D0-9A45-5588-8BF6-74A6C4324AD6</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>70CBB524-897B-506E-AC94-7BAAD5768427</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>33C52F3B-2BB3-5E7A-B30D-A084D52F96A6</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>E61E04A3-2DCF-5444-BDD9-DF3A0F0EB446</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>5D9A4213-49F3-566B-8FF9-388C79FAE043</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>9CB25EDD-8728-5B86-ABE0-04A1DB032F70</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>83A666DA-AE9D-5BD6-B891-458CFE1F4D75</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>AB26CFFD-3265-5E77-A50F-12800BC0BCDE</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>85485D61-55C2-5367-AE5C-6EACC57F2939</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>33C52F3B-2BB3-5E7A-B30D-A084D52F96A6</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>33C52F3B-2BB3-5E7A-B30D-A084D52F96A6</string>
+				<key>modifiers</key>
+				<integer>1048576</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>9074CC61-2144-5B89-AAAE-B71A83919439</string>
+				<key>modifiers</key>
+				<integer>524288</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>BE65CC9F-6DE9-5D2E-BABA-DAD437007DA4</string>
+				<key>modifiers</key>
+				<integer>262144</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>9074CC61-2144-5B89-AAAE-B71A83919439</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>70CBB524-897B-506E-AC94-7BAAD5768427</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>9CB25EDD-8728-5B86-ABE0-04A1DB032F70</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>1B5496D0-9A45-5588-8BF6-74A6C4324AD6</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>1B5496D0-9A45-5588-8BF6-74A6C4324AD6</string>
+				<key>modifiers</key>
+				<integer>1048576</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>1B5496D0-9A45-5588-8BF6-74A6C4324AD6</string>
+				<key>modifiers</key>
+				<integer>524288</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>B22FFE5B-A87F-5CC0-814C-374E991EEDBB</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>8AF93553-8165-5CD0-98D1-A6CA8BCD1B55</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>6FF22B09-8CED-521C-8ACF-FC75D7270944</string>
+				<key>modifiers</key>
+				<integer>1048576</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>BE65CC9F-6DE9-5D2E-BABA-DAD437007DA4</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>70CBB524-897B-506E-AC94-7BAAD5768427</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>C0F596B3-D647-56B5-BC65-8371BD8B266B</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>33C52F3B-2BB3-5E7A-B30D-A084D52F96A6</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>83A666DA-AE9D-5BD6-B891-458CFE1F4D75</string>
+				<key>modifiers</key>
+				<integer>1048576</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>9074CC61-2144-5B89-AAAE-B71A83919439</string>
+				<key>modifiers</key>
+				<integer>524288</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>D45ABB3E-6FC7-5463-9F78-37B1D82E7E37</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>85485D61-55C2-5367-AE5C-6EACC57F2939</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>FA4B8F8C-BF4D-5197-B17B-27E00C8D8C49</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>B22FFE5B-A87F-5CC0-814C-374E991EEDBB</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+	</dict>
 	<key>createdby</key>
 	<string>x-o-r-r-o</string>
 	<key>description</key>
-	<string>Turn the current page or a URL into Markdown, a full-page screenshot, a code image, or a YouTube transcript.</string>
+	<string>Turn the current page or a URL into Markdown, a full-page screenshot, a code image, or a YouTube transcript</string>
+	<key>disabled</key>
+	<false/>
 	<key>name</key>
 	<string>Web Capture</string>
 	<key>objects</key>
-	<array/>
+	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<true/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>1</integer>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>keyword</key>
+				<string>{var:keyword_tomd}</string>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>1</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
+				<key>runningsubtext</key>
+				<string>Fetching the page…</string>
+				<key>script</key>
+				<string>osascript -l JavaScript ./webcapture.js tomd "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>skipuniversalaction</key>
+				<true/>
+				<key>subtext</key>
+				<string>The frontmost tab, a URL, or the clipboard</string>
+				<key>title</key>
+				<string>Web Page to Markdown</string>
+				<key>type</key>
+				<integer>0</integer>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>C0F596B3-D647-56B5-BC65-8371BD8B266B</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<true/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>1</integer>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>keyword</key>
+				<string>{var:keyword_shot}</string>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
+				<key>runningsubtext</key>
+				<string>…</string>
+				<key>script</key>
+				<string>osascript -l JavaScript ./webcapture.js shot "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>skipuniversalaction</key>
+				<true/>
+				<key>subtext</key>
+				<string>The frontmost tab, a URL, or the clipboard</string>
+				<key>title</key>
+				<string>Full-Page Screenshot</string>
+				<key>type</key>
+				<integer>0</integer>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>9CB25EDD-8728-5B86-ABE0-04A1DB032F70</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<true/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>1</integer>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>keyword</key>
+				<string>{var:keyword_code}</string>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
+				<key>runningsubtext</key>
+				<string>…</string>
+				<key>script</key>
+				<string>osascript -l JavaScript ./webcapture.js code "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>skipuniversalaction</key>
+				<true/>
+				<key>subtext</key>
+				<string>The clipboard or typed code; type a language to set it</string>
+				<key>title</key>
+				<string>Code Image with ray.so</string>
+				<key>type</key>
+				<integer>0</integer>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>B22FFE5B-A87F-5CC0-814C-374E991EEDBB</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<true/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>1</integer>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>keyword</key>
+				<string>{var:keyword_ytt}</string>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>1</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
+				<key>runningsubtext</key>
+				<string>Fetching the transcript…</string>
+				<key>script</key>
+				<string>osascript -l JavaScript ./webcapture.js ytt "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>skipuniversalaction</key>
+				<true/>
+				<key>subtext</key>
+				<string>The frontmost tab, a URL, or the clipboard</string>
+				<key>title</key>
+				<string>YouTube Transcript</string>
+				<key>type</key>
+				<integer>0</integer>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>85485D61-55C2-5367-AE5C-6EACC57F2939</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>acceptsfiles</key>
+				<false/>
+				<key>acceptsmulti</key>
+				<integer>0</integer>
+				<key>acceptstext</key>
+				<false/>
+				<key>acceptsurls</key>
+				<true/>
+				<key>name</key>
+				<string>Convert to Markdown</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.universalaction</string>
+			<key>uid</key>
+			<string>091D4C92-B0D9-5877-BF2B-720565FA03A1</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>acceptsfiles</key>
+				<false/>
+				<key>acceptsmulti</key>
+				<integer>0</integer>
+				<key>acceptstext</key>
+				<false/>
+				<key>acceptsurls</key>
+				<true/>
+				<key>name</key>
+				<string>Full-Page Screenshot</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.universalaction</string>
+			<key>uid</key>
+			<string>5D9A4213-49F3-566B-8FF9-388C79FAE043</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>acceptsfiles</key>
+				<false/>
+				<key>acceptsmulti</key>
+				<integer>0</integer>
+				<key>acceptstext</key>
+				<false/>
+				<key>acceptsurls</key>
+				<true/>
+				<key>name</key>
+				<string>YouTube Transcript</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.universalaction</string>
+			<key>uid</key>
+			<string>D45ABB3E-6FC7-5463-9F78-37B1D82E7E37</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>acceptsfiles</key>
+				<false/>
+				<key>acceptsmulti</key>
+				<integer>0</integer>
+				<key>acceptstext</key>
+				<true/>
+				<key>acceptsurls</key>
+				<false/>
+				<key>name</key>
+				<string>Code Image with ray.so</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.universalaction</string>
+			<key>uid</key>
+			<string>FA4B8F8C-BF4D-5197-B17B-27E00C8D8C49</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>./resolve.sh "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>33C52F3B-2BB3-5E7A-B30D-A084D52F96A6</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>./resolve.sh "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>83A666DA-AE9D-5BD6-B891-458CFE1F4D75</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>autopaste</key>
+				<false/>
+				<key>clipboardtext</key>
+				<string>{query}</string>
+				<key>ignoredynamicplaceholders</key>
+				<true/>
+				<key>transient</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.clipboard</string>
+			<key>uid</key>
+			<string>E61E04A3-2DCF-5444-BDD9-DF3A0F0EB446</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>autopaste</key>
+				<true/>
+				<key>clipboardtext</key>
+				<string>{query}</string>
+				<key>ignoredynamicplaceholders</key>
+				<true/>
+				<key>transient</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.clipboard</string>
+			<key>uid</key>
+			<string>AB26CFFD-3265-5E77-A50F-12800BC0BCDE</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>autopaste</key>
+				<false/>
+				<key>clipboardtext</key>
+				<string>{query}</string>
+				<key>ignoredynamicplaceholders</key>
+				<true/>
+				<key>transient</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.clipboard</string>
+			<key>uid</key>
+			<string>6FF22B09-8CED-521C-8ACF-FC75D7270944</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>browser</key>
+				<string></string>
+				<key>skipqueryencode</key>
+				<true/>
+				<key>skipvarencode</key>
+				<false/>
+				<key>spaces</key>
+				<string></string>
+				<key>url</key>
+				<string>{query}</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.openurl</string>
+			<key>uid</key>
+			<string>8AF93553-8165-5CD0-98D1-A6CA8BCD1B55</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>osascript -l JavaScript ./webcapture.js save "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>9074CC61-2144-5B89-AAAE-B71A83919439</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>osascript -l JavaScript ./snapshot.js "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>1B5496D0-9A45-5588-8BF6-74A6C4324AD6</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>osascript -l JavaScript ./webcapture.js handoff "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>BE65CC9F-6DE9-5D2E-BABA-DAD437007DA4</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>lastpathcomponent</key>
+				<false/>
+				<key>onlyshowifquerypopulated</key>
+				<true/>
+				<key>removeextension</key>
+				<false/>
+				<key>text</key>
+				<string>{query}</string>
+				<key>title</key>
+				<string>{var:alfred_workflow_name}</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.notification</string>
+			<key>uid</key>
+			<string>70CBB524-897B-506E-AC94-7BAAD5768427</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+	</array>
 	<key>readme</key>
-	<string># Web Capture
+	<string>## Usage
 
-Turn the current page or a URL into Markdown, a full-page screenshot, a code image, or a YouTube transcript.
+Every command works on the URL typed after its keyword. Leave it empty to use the frontmost tab of Safari, Chrome, Arc, Brave, Edge, Vivaldi, Opera, Orion, Dia, Comet or Helium. Firefox and Zen can’t share their tabs, so copy the URL first: a URL in the clipboard is used when no browser tab is available.
 
-&gt; **Status:** planned — not yet functional. See [PLAN.md](PLAN.md).
+### Markdown
 
-## Usage
+Convert a web page to clean Markdown via the `tomd` keyword. Web Capture finds the article and drops menus, ads and sidebars. It keeps headings, nested lists, tables, code blocks with their language, quotes, images and links (made absolute), and adds YAML front matter with the title, URL, author and date.
 
-Turn the current page or a URL into Markdown, a full-page screenshot, a code image, or a YouTube transcript via the `tomd` keyword.
+* &lt;kbd&gt;↩&lt;/kbd&gt; Copy the Markdown.
+* &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Paste the Markdown into the frontmost app.
+* &lt;kbd&gt;⌥&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Save it as a .md file in the folder set in the Workflow’s Configuration.
+* &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;Y&lt;/kbd&gt; Quick Look the Markdown.
 
-![Web Capture results in Alfred](images/tomd.png)
+The whole page (without extracting the article) and a Markdown link to the page are offered below. Plain text and Markdown files are copied as they are, and JSON, CSV or XML go in a code block.
 
-* &lt;kbd&gt;↩&lt;/kbd&gt; Primary action.
-* &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Secondary action.
-* &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;Y&lt;/kbd&gt; Quick Look.
+Alternatively, convert a URL via the Universal Action.
+
+### Screenshots
+
+Take a full-page screenshot via the `shot` keyword. The page is rendered in the background with the WebKit built into macOS, lazy-loaded images included, at the width set in the Workflow’s Configuration. You can also capture only the first screen, or the page at a phone’s width.
+
+* &lt;kbd&gt;↩&lt;/kbd&gt; Save the PNG and reveal it in Finder.
+* &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy the image.
+* &lt;kbd&gt;⌥&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Save the PNG and open it.
+
+Screenshots don’t use your browser’s logins or cookies.
+
+Alternatively, capture a URL via the Universal Action.
+
+### Code Images
+
+Turn the code in the clipboard into an image with ray.so via the `code` keyword. Type a language after the keyword (like `code py`) to set it, or leave it empty and ray.so detects it. The theme, padding, dark mode, background and line numbers are set in the Workflow’s Configuration.
+
+* &lt;kbd&gt;↩&lt;/kbd&gt; Open the code in ray.so.
+* &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy the ray.so link.
+
+Alternatively, turn selected code into an image via the Universal Action.
+
+### YouTube Transcripts
+
+Get the transcript of a YouTube video via the `ytt` keyword. Captions written for the video in your languages (set in the Workflow’s Configuration) come first, then auto-generated ones. The other languages are listed below the transcript: type a language code after the URL (like `ytt https://youtu.be/… de`) to pick one, and add `auto` for auto-generated captions.
+
+* &lt;kbd&gt;↩&lt;/kbd&gt; Copy the transcript as paragraphs.
+* &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy the transcript with timestamps.
+* &lt;kbd&gt;⌥&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Save it as Markdown with timestamp links, or as plain text.
+* &lt;kbd&gt;⌃&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Summarize it with the Local AI workflow, when it is installed.
+* &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;Y&lt;/kbd&gt; Quick Look the transcript.
+
+Alternatively, get the transcript of a YouTube URL via the Universal Action.
 
 Every keyword can be changed in the Workflow’s Configuration.
-
-## Development
-
-```bash
-./build.sh   # -&gt; dist/alfred-web-capture-&lt;version&gt;.alfredworkflow
-```
-
-## AI disclosure
-
-This workflow is developed with the help of Claude (Anthropic), an AI assistant. All code is reviewed and tested by the author.
 </string>
 	<key>uidata</key>
-	<dict/>
+	<dict>
+		<key>091D4C92-B0D9-5877-BF2B-720565FA03A1</key>
+		<dict>
+			<key>xpos</key>
+			<integer>30</integer>
+			<key>ypos</key>
+			<integer>20</integer>
+		</dict>
+		<key>1B5496D0-9A45-5588-8BF6-74A6C4324AD6</key>
+		<dict>
+			<key>note</key>
+			<string>Renders the page with WebKit and saves, copies or opens the PNG</string>
+			<key>xpos</key>
+			<integer>470</integer>
+			<key>ypos</key>
+			<integer>670</integer>
+		</dict>
+		<key>33C52F3B-2BB3-5E7A-B30D-A084D52F96A6</key>
+		<dict>
+			<key>note</key>
+			<string>Reads large results back from the cache</string>
+			<key>xpos</key>
+			<integer>470</integer>
+			<key>ypos</key>
+			<integer>20</integer>
+		</dict>
+		<key>5D9A4213-49F3-566B-8FF9-388C79FAE043</key>
+		<dict>
+			<key>xpos</key>
+			<integer>30</integer>
+			<key>ypos</key>
+			<integer>150</integer>
+		</dict>
+		<key>6FF22B09-8CED-521C-8ACF-FC75D7270944</key>
+		<dict>
+			<key>xpos</key>
+			<integer>470</integer>
+			<key>ypos</key>
+			<integer>280</integer>
+		</dict>
+		<key>70CBB524-897B-506E-AC94-7BAAD5768427</key>
+		<dict>
+			<key>xpos</key>
+			<integer>690</integer>
+			<key>ypos</key>
+			<integer>280</integer>
+		</dict>
+		<key>83A666DA-AE9D-5BD6-B891-458CFE1F4D75</key>
+		<dict>
+			<key>xpos</key>
+			<integer>470</integer>
+			<key>ypos</key>
+			<integer>150</integer>
+		</dict>
+		<key>85485D61-55C2-5367-AE5C-6EACC57F2939</key>
+		<dict>
+			<key>xpos</key>
+			<integer>250</integer>
+			<key>ypos</key>
+			<integer>410</integer>
+		</dict>
+		<key>8AF93553-8165-5CD0-98D1-A6CA8BCD1B55</key>
+		<dict>
+			<key>xpos</key>
+			<integer>470</integer>
+			<key>ypos</key>
+			<integer>410</integer>
+		</dict>
+		<key>9074CC61-2144-5B89-AAAE-B71A83919439</key>
+		<dict>
+			<key>note</key>
+			<string>Copies the prepared file to the save folder</string>
+			<key>xpos</key>
+			<integer>470</integer>
+			<key>ypos</key>
+			<integer>540</integer>
+		</dict>
+		<key>9CB25EDD-8728-5B86-ABE0-04A1DB032F70</key>
+		<dict>
+			<key>xpos</key>
+			<integer>250</integer>
+			<key>ypos</key>
+			<integer>150</integer>
+		</dict>
+		<key>AB26CFFD-3265-5E77-A50F-12800BC0BCDE</key>
+		<dict>
+			<key>xpos</key>
+			<integer>690</integer>
+			<key>ypos</key>
+			<integer>150</integer>
+		</dict>
+		<key>B22FFE5B-A87F-5CC0-814C-374E991EEDBB</key>
+		<dict>
+			<key>xpos</key>
+			<integer>250</integer>
+			<key>ypos</key>
+			<integer>280</integer>
+		</dict>
+		<key>BE65CC9F-6DE9-5D2E-BABA-DAD437007DA4</key>
+		<dict>
+			<key>note</key>
+			<string>Hands the transcript to the Local AI workflow</string>
+			<key>xpos</key>
+			<integer>470</integer>
+			<key>ypos</key>
+			<integer>800</integer>
+		</dict>
+		<key>C0F596B3-D647-56B5-BC65-8371BD8B266B</key>
+		<dict>
+			<key>xpos</key>
+			<integer>250</integer>
+			<key>ypos</key>
+			<integer>20</integer>
+		</dict>
+		<key>D45ABB3E-6FC7-5463-9F78-37B1D82E7E37</key>
+		<dict>
+			<key>xpos</key>
+			<integer>30</integer>
+			<key>ypos</key>
+			<integer>280</integer>
+		</dict>
+		<key>E61E04A3-2DCF-5444-BDD9-DF3A0F0EB446</key>
+		<dict>
+			<key>xpos</key>
+			<integer>690</integer>
+			<key>ypos</key>
+			<integer>20</integer>
+		</dict>
+		<key>FA4B8F8C-BF4D-5197-B17B-27E00C8D8C49</key>
+		<dict>
+			<key>xpos</key>
+			<integer>30</integer>
+			<key>ypos</key>
+			<integer>410</integer>
+		</dict>
+	</dict>
 	<key>userconfigurationconfig</key>
 	<array>
 		<dict>
@@ -62,9 +976,9 @@ This workflow is developed with the help of Claude (Anthropic), an AI assistant.
 				<true/>
 			</dict>
 			<key>description</key>
-			<string></string>
+			<string>Web page to Markdown</string>
 			<key>label</key>
-			<string>Tomd keyword</string>
+			<string>Keywords</string>
 			<key>type</key>
 			<string>textfield</string>
 			<key>variable</key>
@@ -83,7 +997,7 @@ This workflow is developed with the help of Claude (Anthropic), an AI assistant.
 				<true/>
 			</dict>
 			<key>description</key>
-			<string></string>
+			<string>Full-page screenshot</string>
 			<key>label</key>
 			<string></string>
 			<key>type</key>
@@ -104,7 +1018,7 @@ This workflow is developed with the help of Claude (Anthropic), an AI assistant.
 				<true/>
 			</dict>
 			<key>description</key>
-			<string></string>
+			<string>Code image with ray.so</string>
 			<key>label</key>
 			<string></string>
 			<key>type</key>
@@ -125,7 +1039,7 @@ This workflow is developed with the help of Claude (Anthropic), an AI assistant.
 				<true/>
 			</dict>
 			<key>description</key>
-			<string></string>
+			<string>YouTube transcript</string>
 			<key>label</key>
 			<string></string>
 			<key>type</key>
@@ -133,9 +1047,462 @@ This workflow is developed with the help of Claude (Anthropic), an AI assistant.
 			<key>variable</key>
 			<string>keyword_ytt</string>
 		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>~/Downloads</string>
+				<key>filtermode</key>
+				<integer>1</integer>
+				<key>placeholder</key>
+				<string>~/Downloads</string>
+				<key>required</key>
+				<false/>
+			</dict>
+			<key>description</key>
+			<string>Where ⌥↩ saves Markdown files, transcripts and screenshots.</string>
+			<key>label</key>
+			<string>Save folder</string>
+			<key>type</key>
+			<string>filepicker</string>
+			<key>variable</key>
+			<string>save_folder</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>20</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>10 seconds</string>
+						<string>10</string>
+					</array>
+					<array>
+						<string>20 seconds</string>
+						<string>20</string>
+					</array>
+					<array>
+						<string>40 seconds</string>
+						<string>40</string>
+					</array>
+					<array>
+						<string>60 seconds</string>
+						<string>60</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string>Network timeout</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>fetch_timeout</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<true/>
+				<key>required</key>
+				<false/>
+				<key>text</key>
+				<string>Add YAML front matter (title, URL, author, date)</string>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string>Markdown</string>
+			<key>type</key>
+			<string>checkbox</string>
+			<key>variable</key>
+			<string>tomd_front_matter</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<false/>
+				<key>required</key>
+				<false/>
+				<key>text</key>
+				<string>Use browser page content (for logged-in pages)</string>
+			</dict>
+			<key>description</key>
+			<string>Reads the frontmost tab’s page instead of downloading it. Needs “Allow JavaScript from Apple Events” in the browser.</string>
+			<key>label</key>
+			<string></string>
+			<key>type</key>
+			<string>checkbox</string>
+			<key>variable</key>
+			<string>tomd_browser_html</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>1280</string>
+				<key>placeholder</key>
+				<string>1280</string>
+				<key>required</key>
+				<false/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string>Viewport width in points (320–3840).</string>
+			<key>label</key>
+			<string>Screenshot width</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>shot_width</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>auto</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>Same as the screen</string>
+						<string>auto</string>
+					</array>
+					<array>
+						<string>1× (smaller files)</string>
+						<string>1</string>
+					</array>
+					<array>
+						<string>2× (Retina)</string>
+						<string>2</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string>Screenshot scale</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>shot_scale</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>20000</string>
+				<key>placeholder</key>
+				<string>20000</string>
+				<key>required</key>
+				<false/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string>Very long pages are cut at this height, in points.</string>
+			<key>label</key>
+			<string>Maximum height</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>shot_max_height</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>candy</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>Candy</string>
+						<string>candy</string>
+					</array>
+					<array>
+						<string>Breeze</string>
+						<string>breeze</string>
+					</array>
+					<array>
+						<string>Midnight</string>
+						<string>midnight</string>
+					</array>
+					<array>
+						<string>Sunset</string>
+						<string>sunset</string>
+					</array>
+					<array>
+						<string>Raindrop</string>
+						<string>raindrop</string>
+					</array>
+					<array>
+						<string>Crimson</string>
+						<string>crimson</string>
+					</array>
+					<array>
+						<string>Falcon</string>
+						<string>falcon</string>
+					</array>
+					<array>
+						<string>Meadow</string>
+						<string>meadow</string>
+					</array>
+					<array>
+						<string>Noir</string>
+						<string>noir</string>
+					</array>
+					<array>
+						<string>Ice</string>
+						<string>ice</string>
+					</array>
+					<array>
+						<string>Sand</string>
+						<string>sand</string>
+					</array>
+					<array>
+						<string>Forest</string>
+						<string>forest</string>
+					</array>
+					<array>
+						<string>Mono</string>
+						<string>mono</string>
+					</array>
+					<array>
+						<string>Bitmap</string>
+						<string>bitmap</string>
+					</array>
+					<array>
+						<string>Vercel</string>
+						<string>vercel</string>
+					</array>
+					<array>
+						<string>Supabase</string>
+						<string>supabase</string>
+					</array>
+					<array>
+						<string>Tailwind</string>
+						<string>tailwind</string>
+					</array>
+					<array>
+						<string>OpenAI</string>
+						<string>openai</string>
+					</array>
+					<array>
+						<string>Mintlify</string>
+						<string>mintlify</string>
+					</array>
+					<array>
+						<string>Prisma</string>
+						<string>prisma</string>
+					</array>
+					<array>
+						<string>Clerk</string>
+						<string>clerk</string>
+					</array>
+					<array>
+						<string>ElevenLabs</string>
+						<string>elevenlabs</string>
+					</array>
+					<array>
+						<string>Resend</string>
+						<string>resend</string>
+					</array>
+					<array>
+						<string>Trigger.dev</string>
+						<string>triggerdev</string>
+					</array>
+					<array>
+						<string>Nuxt</string>
+						<string>nuxt</string>
+					</array>
+					<array>
+						<string>Browserbase</string>
+						<string>browserbase</string>
+					</array>
+					<array>
+						<string>Cloudflare</string>
+						<string>cloudflare</string>
+					</array>
+					<array>
+						<string>Gemini</string>
+						<string>gemini</string>
+					</array>
+					<array>
+						<string>Stripe</string>
+						<string>stripe</string>
+					</array>
+					<array>
+						<string>Firecrawl</string>
+						<string>firecrawl</string>
+					</array>
+					<array>
+						<string>AWS</string>
+						<string>aws</string>
+					</array>
+					<array>
+						<string>Auth0</string>
+						<string>auth0</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string>ray.so theme</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>code_theme</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>64</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>16</string>
+						<string>16</string>
+					</array>
+					<array>
+						<string>32</string>
+						<string>32</string>
+					</array>
+					<array>
+						<string>64</string>
+						<string>64</string>
+					</array>
+					<array>
+						<string>128</string>
+						<string>128</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string>ray.so padding</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>code_padding</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<true/>
+				<key>required</key>
+				<false/>
+				<key>text</key>
+				<string>Dark mode</string>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string></string>
+			<key>type</key>
+			<string>checkbox</string>
+			<key>variable</key>
+			<string>code_dark</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<true/>
+				<key>required</key>
+				<false/>
+				<key>text</key>
+				<string>Show the background</string>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string></string>
+			<key>type</key>
+			<string>checkbox</string>
+			<key>variable</key>
+			<string>code_background</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<false/>
+				<key>required</key>
+				<false/>
+				<key>text</key>
+				<string>Line numbers</string>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string></string>
+			<key>type</key>
+			<string>checkbox</string>
+			<key>variable</key>
+			<string>code_line_numbers</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>en</string>
+				<key>placeholder</key>
+				<string>en</string>
+				<key>required</key>
+				<false/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string>Preferred caption languages, in order, separated by commas (like: en, de).</string>
+			<key>label</key>
+			<string>Transcript languages</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>ytt_language</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>md</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>Markdown with timestamp links (.md)</string>
+						<string>md</string>
+					</array>
+					<array>
+						<string>Plain text (.txt)</string>
+						<string>txt</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string>Save transcripts as</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>ytt_save_format</string>
+		</dict>
 	</array>
+	<key>variables</key>
+	<dict/>
+	<key>variablesdontexport</key>
+	<array/>
 	<key>version</key>
-	<string>0.1.0</string>
+	<string>1.0.0</string>
 	<key>webaddress</key>
 	<string>https://github.com/x-o-r-r-o/alfred-web-capture</string>
 </dict>

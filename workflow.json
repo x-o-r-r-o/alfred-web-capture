@@ -1,0 +1,606 @@
+{
+  "bundleid": "io.github.x-o-r-r-o.web-capture",
+  "name": "Web Capture",
+  "description": "Turn the current page or a URL into Markdown, a full-page screenshot, a code image, or a YouTube transcript",
+  "category": "Productivity",
+  "createdby": "x-o-r-r-o",
+  "webaddress": "https://github.com/x-o-r-r-o/alfred-web-capture",
+  "version": "1.0.0",
+  "variablesdontexport": [],
+  "config": [
+    {
+      "type": "textfield",
+      "variable": "keyword_tomd",
+      "label": "Keywords",
+      "description": "Web page to Markdown",
+      "config": {
+        "default": "tomd",
+        "placeholder": "tomd",
+        "required": true,
+        "trim": true
+      }
+    },
+    {
+      "type": "textfield",
+      "variable": "keyword_shot",
+      "label": "",
+      "description": "Full-page screenshot",
+      "config": {
+        "default": "shot",
+        "placeholder": "shot",
+        "required": true,
+        "trim": true
+      }
+    },
+    {
+      "type": "textfield",
+      "variable": "keyword_code",
+      "label": "",
+      "description": "Code image with ray.so",
+      "config": {
+        "default": "code",
+        "placeholder": "code",
+        "required": true,
+        "trim": true
+      }
+    },
+    {
+      "type": "textfield",
+      "variable": "keyword_ytt",
+      "label": "",
+      "description": "YouTube transcript",
+      "config": {
+        "default": "ytt",
+        "placeholder": "ytt",
+        "required": true,
+        "trim": true
+      }
+    },
+    {
+      "type": "filepicker",
+      "variable": "save_folder",
+      "label": "Save folder",
+      "description": "Where ⌥↩ saves Markdown files, transcripts and screenshots.",
+      "config": {
+        "default": "~/Downloads",
+        "filtermode": 1,
+        "placeholder": "~/Downloads",
+        "required": false
+      }
+    },
+    {
+      "type": "popupbutton",
+      "variable": "fetch_timeout",
+      "label": "Network timeout",
+      "description": "",
+      "config": {
+        "default": "20",
+        "pairs": [
+          [
+            "10 seconds",
+            "10"
+          ],
+          [
+            "20 seconds",
+            "20"
+          ],
+          [
+            "40 seconds",
+            "40"
+          ],
+          [
+            "60 seconds",
+            "60"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "checkbox",
+      "variable": "tomd_front_matter",
+      "label": "Markdown",
+      "description": "",
+      "config": {
+        "default": true,
+        "required": false,
+        "text": "Add YAML front matter (title, URL, author, date)"
+      }
+    },
+    {
+      "type": "checkbox",
+      "variable": "tomd_browser_html",
+      "label": "",
+      "description": "Reads the frontmost tab’s page instead of downloading it. Needs “Allow JavaScript from Apple Events” in the browser.",
+      "config": {
+        "default": false,
+        "required": false,
+        "text": "Use browser page content (for logged-in pages)"
+      }
+    },
+    {
+      "type": "textfield",
+      "variable": "shot_width",
+      "label": "Screenshot width",
+      "description": "Viewport width in points (320–3840).",
+      "config": {
+        "default": "1280",
+        "placeholder": "1280",
+        "required": false,
+        "trim": true
+      }
+    },
+    {
+      "type": "popupbutton",
+      "variable": "shot_scale",
+      "label": "Screenshot scale",
+      "description": "",
+      "config": {
+        "default": "auto",
+        "pairs": [
+          [
+            "Same as the screen",
+            "auto"
+          ],
+          [
+            "1× (smaller files)",
+            "1"
+          ],
+          [
+            "2× (Retina)",
+            "2"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "textfield",
+      "variable": "shot_max_height",
+      "label": "Maximum height",
+      "description": "Very long pages are cut at this height, in points.",
+      "config": {
+        "default": "20000",
+        "placeholder": "20000",
+        "required": false,
+        "trim": true
+      }
+    },
+    {
+      "type": "popupbutton",
+      "variable": "code_theme",
+      "label": "ray.so theme",
+      "description": "",
+      "config": {
+        "default": "candy",
+        "pairs": [
+          [
+            "Candy",
+            "candy"
+          ],
+          [
+            "Breeze",
+            "breeze"
+          ],
+          [
+            "Midnight",
+            "midnight"
+          ],
+          [
+            "Sunset",
+            "sunset"
+          ],
+          [
+            "Raindrop",
+            "raindrop"
+          ],
+          [
+            "Crimson",
+            "crimson"
+          ],
+          [
+            "Falcon",
+            "falcon"
+          ],
+          [
+            "Meadow",
+            "meadow"
+          ],
+          [
+            "Noir",
+            "noir"
+          ],
+          [
+            "Ice",
+            "ice"
+          ],
+          [
+            "Sand",
+            "sand"
+          ],
+          [
+            "Forest",
+            "forest"
+          ],
+          [
+            "Mono",
+            "mono"
+          ],
+          [
+            "Bitmap",
+            "bitmap"
+          ],
+          [
+            "Vercel",
+            "vercel"
+          ],
+          [
+            "Supabase",
+            "supabase"
+          ],
+          [
+            "Tailwind",
+            "tailwind"
+          ],
+          [
+            "OpenAI",
+            "openai"
+          ],
+          [
+            "Mintlify",
+            "mintlify"
+          ],
+          [
+            "Prisma",
+            "prisma"
+          ],
+          [
+            "Clerk",
+            "clerk"
+          ],
+          [
+            "ElevenLabs",
+            "elevenlabs"
+          ],
+          [
+            "Resend",
+            "resend"
+          ],
+          [
+            "Trigger.dev",
+            "triggerdev"
+          ],
+          [
+            "Nuxt",
+            "nuxt"
+          ],
+          [
+            "Browserbase",
+            "browserbase"
+          ],
+          [
+            "Cloudflare",
+            "cloudflare"
+          ],
+          [
+            "Gemini",
+            "gemini"
+          ],
+          [
+            "Stripe",
+            "stripe"
+          ],
+          [
+            "Firecrawl",
+            "firecrawl"
+          ],
+          [
+            "AWS",
+            "aws"
+          ],
+          [
+            "Auth0",
+            "auth0"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "popupbutton",
+      "variable": "code_padding",
+      "label": "ray.so padding",
+      "description": "",
+      "config": {
+        "default": "64",
+        "pairs": [
+          [
+            "16",
+            "16"
+          ],
+          [
+            "32",
+            "32"
+          ],
+          [
+            "64",
+            "64"
+          ],
+          [
+            "128",
+            "128"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "checkbox",
+      "variable": "code_dark",
+      "label": "",
+      "description": "",
+      "config": {
+        "default": true,
+        "required": false,
+        "text": "Dark mode"
+      }
+    },
+    {
+      "type": "checkbox",
+      "variable": "code_background",
+      "label": "",
+      "description": "",
+      "config": {
+        "default": true,
+        "required": false,
+        "text": "Show the background"
+      }
+    },
+    {
+      "type": "checkbox",
+      "variable": "code_line_numbers",
+      "label": "",
+      "description": "",
+      "config": {
+        "default": false,
+        "required": false,
+        "text": "Line numbers"
+      }
+    },
+    {
+      "type": "textfield",
+      "variable": "ytt_language",
+      "label": "Transcript languages",
+      "description": "Preferred caption languages, in order, separated by commas (like: en, de).",
+      "config": {
+        "default": "en",
+        "placeholder": "en",
+        "required": false,
+        "trim": true
+      }
+    },
+    {
+      "type": "popupbutton",
+      "variable": "ytt_save_format",
+      "label": "Save transcripts as",
+      "description": "",
+      "config": {
+        "default": "md",
+        "pairs": [
+          [
+            "Markdown with timestamp links (.md)",
+            "md"
+          ],
+          [
+            "Plain text (.txt)",
+            "txt"
+          ]
+        ]
+      }
+    }
+  ],
+  "objects": [
+    {
+      "id": "sf_tomd",
+      "type": "scriptfilter",
+      "keyword": "{var:keyword_tomd}",
+      "title": "Web Page to Markdown",
+      "subtext": "The frontmost tab, a URL, or the clipboard",
+      "running": "Fetching the page…",
+      "queuedelaymode": 1,
+      "script": "osascript -l JavaScript ./webcapture.js tomd \"$1\""
+    },
+    {
+      "id": "sf_shot",
+      "type": "scriptfilter",
+      "keyword": "{var:keyword_shot}",
+      "title": "Full-Page Screenshot",
+      "subtext": "The frontmost tab, a URL, or the clipboard",
+      "script": "osascript -l JavaScript ./webcapture.js shot \"$1\""
+    },
+    {
+      "id": "sf_code",
+      "type": "scriptfilter",
+      "keyword": "{var:keyword_code}",
+      "title": "Code Image with ray.so",
+      "subtext": "The clipboard or typed code; type a language to set it",
+      "script": "osascript -l JavaScript ./webcapture.js code \"$1\""
+    },
+    {
+      "id": "sf_ytt",
+      "type": "scriptfilter",
+      "keyword": "{var:keyword_ytt}",
+      "title": "YouTube Transcript",
+      "subtext": "The frontmost tab, a URL, or the clipboard",
+      "running": "Fetching the transcript…",
+      "queuedelaymode": 1,
+      "script": "osascript -l JavaScript ./webcapture.js ytt \"$1\""
+    },
+    {
+      "id": "ua_tomd",
+      "type": "universalaction",
+      "name": "Convert to Markdown",
+      "urls": true
+    },
+    {
+      "id": "ua_shot",
+      "type": "universalaction",
+      "name": "Full-Page Screenshot",
+      "urls": true
+    },
+    {
+      "id": "ua_ytt",
+      "type": "universalaction",
+      "name": "YouTube Transcript",
+      "urls": true
+    },
+    {
+      "id": "ua_code",
+      "type": "universalaction",
+      "name": "Code Image with ray.so",
+      "text": true
+    },
+    {
+      "id": "resolve",
+      "type": "script",
+      "script": "./resolve.sh \"$1\"",
+      "note": "Reads large results back from the cache"
+    },
+    {
+      "id": "resolve_paste",
+      "type": "script",
+      "script": "./resolve.sh \"$1\""
+    },
+    {
+      "id": "copy",
+      "type": "clipboard",
+      "autopaste": false
+    },
+    {
+      "id": "paste",
+      "type": "clipboard",
+      "autopaste": true
+    },
+    {
+      "id": "copy_link",
+      "type": "clipboard",
+      "autopaste": false
+    },
+    {
+      "id": "open_rayso",
+      "type": "openurl"
+    },
+    {
+      "id": "save",
+      "type": "script",
+      "script": "osascript -l JavaScript ./webcapture.js save \"$1\"",
+      "note": "Copies the prepared file to the save folder"
+    },
+    {
+      "id": "shot_run",
+      "type": "script",
+      "script": "osascript -l JavaScript ./snapshot.js \"$1\"",
+      "note": "Renders the page with WebKit and saves, copies or opens the PNG"
+    },
+    {
+      "id": "handoff",
+      "type": "script",
+      "script": "osascript -l JavaScript ./webcapture.js handoff \"$1\"",
+      "note": "Hands the transcript to the Local AI workflow"
+    },
+    {
+      "id": "notify",
+      "type": "notification"
+    }
+  ],
+  "connections": [
+    {
+      "from": "ua_tomd",
+      "to": "sf_tomd"
+    },
+    {
+      "from": "ua_shot",
+      "to": "sf_shot"
+    },
+    {
+      "from": "ua_ytt",
+      "to": "sf_ytt"
+    },
+    {
+      "from": "ua_code",
+      "to": "sf_code"
+    },
+    {
+      "from": "sf_tomd",
+      "to": "resolve"
+    },
+    {
+      "from": "sf_tomd",
+      "to": "resolve_paste",
+      "mod": "cmd"
+    },
+    {
+      "from": "sf_tomd",
+      "to": "save",
+      "mod": "alt"
+    },
+    {
+      "from": "sf_ytt",
+      "to": "resolve"
+    },
+    {
+      "from": "sf_ytt",
+      "to": "resolve",
+      "mod": "cmd"
+    },
+    {
+      "from": "sf_ytt",
+      "to": "save",
+      "mod": "alt"
+    },
+    {
+      "from": "sf_ytt",
+      "to": "handoff",
+      "mod": "ctrl"
+    },
+    {
+      "from": "sf_code",
+      "to": "open_rayso"
+    },
+    {
+      "from": "sf_code",
+      "to": "copy_link",
+      "mod": "cmd"
+    },
+    {
+      "from": "sf_shot",
+      "to": "shot_run"
+    },
+    {
+      "from": "sf_shot",
+      "to": "shot_run",
+      "mod": "cmd"
+    },
+    {
+      "from": "sf_shot",
+      "to": "shot_run",
+      "mod": "alt"
+    },
+    {
+      "from": "resolve",
+      "to": "copy"
+    },
+    {
+      "from": "resolve_paste",
+      "to": "paste"
+    },
+    {
+      "from": "save",
+      "to": "notify"
+    },
+    {
+      "from": "shot_run",
+      "to": "notify"
+    },
+    {
+      "from": "handoff",
+      "to": "notify"
+    }
+  ]
+}
