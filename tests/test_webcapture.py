@@ -499,6 +499,29 @@ class TomdTests(unittest.TestCase):
         sf("tomd", f"{BASE}/blog/coffee")
         self.assertEqual(len(requests_to("/blog/coffee")), n + 1)
 
+    def test_cache_is_pruned(self):
+        # audit 4: converted pages, transcripts and large results piled up in the cache forever
+        os.makedirs(os.path.join(CACHE, "md-old"), exist_ok=True)
+        old = [os.path.join(CACHE, "md-old"), os.path.join(CACHE, "yt-old.json"), os.path.join(CACHE, "result-md-old.txt")]
+        for pth in old[1:]:
+            open(pth, "w").close()
+        fresh = os.path.join(CACHE, "yt-fresh.json")
+        open(fresh, "w").close()
+        for pth in old:
+            os.utime(pth, (time.time() - 2 * 86400,) * 2)
+        sf("tomd", "")
+        for pth in old:
+            self.assertFalse(os.path.exists(pth), pth)
+        self.assertTrue(os.path.exists(fresh))
+
+    def test_large_results_are_named_by_content(self):
+        # audit 4: result files were numbered per run, so a newer keystroke overwrote the file behind visible results
+        a = sf("tomd", f"{BASE}/big")[0]["arg"]
+        clear_cache()
+        b = sf("tomd", f"{BASE}/big")[0]["arg"]
+        self.assertEqual(a, b)
+        self.assertRegex(a, r"result-md-[0-9a-f]{8}-\w+\.txt$")
+
     def test_browser_page_content(self):
         html = "<html><head><title>Secret</title></head><body><article><h1>Members only</h1><p>" + "Logged-in content. " * 30 + "</p></article></body></html>"
         n = len(requests_to("/forbidden"))
@@ -742,6 +765,10 @@ class MarkdownTests(unittest.TestCase):
     def test_table_delimiter_row_in_text_is_escaped(self):
         md = self.convert("<p>a | b<br>--- | ---<br>c | d</p>", full=True)
         self.assertIn("--- \\| ---", md)
+
+    def test_text_directly_inside_a_list(self):
+        md = self.convert("<ul>loose<li>one</li>tail text<li>two</li></ul>", full=True)
+        self.assertIn("loose\n- one tail text\n- two", md)
 
     def test_deeply_nested_lists_are_fast(self):
         # audit 4: trimming trailing spaces with /[ \t]+$/gm was quadratic on deep list indentation (7 s)

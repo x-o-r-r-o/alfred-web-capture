@@ -98,13 +98,29 @@ function safeFileName(s, ext) {
   const base = Array.from(clean).slice(0, 120).join("").trim() || "Untitled"; // never split an emoji
   return `${base}.${ext}`;
 }
-// Large values are written to the cache; resolve.sh reads them back after selection.
-let largeCount = 0;
+// Large values are written to the cache; resolve.sh reads them back after selection. Named by content:
+// with a counter, a newer keystroke's run overwrote the file behind the results still on screen.
 function largeArg(value, tag) {
   if (value.length <= LARGE) return value;
-  const path = `${cacheDir()}/result-${tag}-${largeCount++}.txt`;
-  writeFile(path, value);
+  const path = `${cacheDir()}/result-${tag}-${hashKey(value)}-${value.length.toString(36)}.txt`;
+  if (!exists(path)) writeFile(path, value);
   return `wcfile:${path}`;
+}
+
+// Converted pages, transcripts and large results older than a day are removed (checked at most hourly).
+function pruneCache() {
+  const dir = cacheDir();
+  const stamp = `${dir}/pruned`;
+  if (ageSeconds(stamp) < 3600) return;
+  writeFile(stamp, "");
+  const list = FM.contentsOfDirectoryAtPathError(dir, $());
+  if (list.isNil()) return;
+  for (let i = 0; i < list.count; i++) {
+    const name = list.objectAtIndex(i).js;
+    if (!/^(md-|yt-|result-|fetch-)/.test(name)) continue;
+    const path = `${dir}/${name}`;
+    if (ageSeconds(path) > 86400) FM.removeItemAtPathError(path, $());
+  }
 }
 function textField(value) {
   if (value.length > LARGE) return { copy: "Result too large for ⌘C: press ↩ to copy it", largetype: value.slice(0, 5000) + "…" };
@@ -1141,10 +1157,10 @@ function run(argv) {
   const query = rest.join(" ");
   try {
     switch (cmd) {
-      case "tomd": return output(tomdItems(query));
+      case "tomd": pruneCache(); return output(tomdItems(query));
       case "shot": return output(shotItems(query));
       case "code": return output(codeItems(query));
-      case "ytt": return output(yttItems(query));
+      case "ytt": pruneCache(); return output(yttItems(query));
       case "save": return saveAction(query);
       case "handoff": return handoffAction(query);
       case "convert": { // developer/test helper: convert <html file> <url> [full]
