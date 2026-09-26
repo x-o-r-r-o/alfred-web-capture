@@ -210,6 +210,15 @@ def resolve(arg):
     return out.stdout
 
 
+def closed_port():
+    import socket
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()  # nothing listens there now: connections are refused
+    return port
+
+
 def clear_cache():
     shutil.rmtree(CACHE, ignore_errors=True)
 
@@ -254,6 +263,13 @@ class SourceTests(unittest.TestCase):
     def test_non_web_tab_uses_clipboard(self):
         it = sf("shot", "", WC_TEST_TAB=tab("chrome://newtab/", browser="Google Chrome"), WC_TEST_CLIPBOARD="https://example.net/")
         self.assertEqual(it[0]["arg"], "https://example.net/")
+
+    def test_automation_permission_hint(self):
+        # audit 3: a denied Automation permission (-1743) showed a raw AppleScript error
+        t = json.dumps({"error": "Error: Not authorized to send Apple events to Safari. (-1743)", "browser": "Safari"})
+        it = sf("tomd", "", WC_TEST_TAB=t)
+        self.assertEqual(it[0]["title"], "No web page")
+        self.assertIn("Privacy & Security › Automation", it[0]["subtitle"])
 
     def test_no_source(self):
         it = sf("tomd", "")
@@ -348,7 +364,7 @@ class TomdTests(unittest.TestCase):
         self.assertIn("HTTP 500", sf("tomd", f"{BASE}/broken")[0]["title"])
 
     def test_network_errors(self):
-        port = SERVER.server_address[1] + 1 if SERVER.server_address[1] < 65000 else 1
+        port = closed_port()
         it = sf("tomd", f"http://127.0.0.1:{port}/")
         self.assertEqual(it[0]["title"], "Could not connect to the server")
         it = sf("tomd", f"{BASE}/slow", fetch_timeout="3")
@@ -608,6 +624,18 @@ class MarkdownTests(unittest.TestCase):
         self.assertEqual(md.count("a.jpg"), 1)
         self.assertEqual(md.count("b.jpg"), 1)
 
+    def test_sibling_sections_are_merged(self):
+        # audit 3: when the article is split over sibling blocks, only the best-scoring one was kept
+        para = lambda n, i: f"<p>Part {n}, paragraph {i}: with commas, clauses, and enough words to count as prose here.</p>"
+        nav = "<div class='nav-links'>" + "".join(f"<a href='/{i}'>Link {i}</a> " for i in range(12)) + "</div>"
+        part1 = "<div class='chunk-a'><h2>Part 1</h2>" + "".join(para(1, i) for i in range(6)) + "</div>"
+        part2 = "<div class='chunk-b'><h2>Part 2</h2>" + "".join(para(2, i) for i in range(2)) + "</div>"
+        md = self.convert(f"<body>{nav}<div id='wrap'>{part1}{part2}<div class='sidebar-promo'><p>Buy our stuff, now, today, please.</p></div></div></body>")
+        self.assertIn("Part 1, paragraph 5", md)
+        self.assertIn("Part 2, paragraph 1", md)
+        self.assertNotIn("Link 3", md)
+        self.assertNotIn("Buy our stuff", md)
+
     def test_card_links(self):
         # audit 2: <a><h3>Title</h3><p>Summary</p></a> became "[### Title Summary](…)"
         md = self.convert("<body><a href='/story'><h3>Big story</h3><p>What happened today.</p></a><a href='/two'><div><p>Card text only</p></div></a></body>", full=True)
@@ -699,9 +727,16 @@ class ShotTests(unittest.TestCase):
                                capture_output=True, text=True)
         self.assertGreater(int(check.stdout.strip() or 0), 100)
 
+    def test_non_html_urls(self):
+        # audit 3: images and PDFs must not hang the capture
+        out = run("./snapshot.js", [f"{BASE}/pic.png"], shot_width="320", shot_scale="1", shot_full="0", WC_TEST_SHOT_TIMEOUT="8").strip()
+        self.assertTrue(out.startswith("OK ") or out.startswith("Screenshot failed"), out)
+        out = run("./snapshot.js", [f"{BASE}/doc.pdf"], shot_width="320", shot_scale="1", shot_full="1", WC_TEST_SHOT_TIMEOUT="8").strip()
+        self.assertTrue(out.startswith("OK ") or out.startswith("Screenshot failed"), out)
+
     def test_errors(self):
         self.assertEqual(run("./snapshot.js", ["file:///etc/hosts"]).strip(), "Screenshot failed: not an http(s) URL")
-        port = SERVER.server_address[1] + 1 if SERVER.server_address[1] < 65000 else 1
+        port = closed_port()
         out = run("./snapshot.js", [f"http://127.0.0.1:{port}/"]).strip()
         self.assertTrue(out.startswith("Screenshot failed:"), out)
 

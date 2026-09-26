@@ -13,7 +13,7 @@ Then turn on “Use browser page content” in the Workflow’s Configuration.
 
 ## Usage
 
-Every command works on the URL typed after its keyword. Leave it empty to use the frontmost tab of Safari, Chrome, Arc, Brave, Edge, Vivaldi, Opera, Orion, Dia, Comet or Helium. Firefox and Zen can’t share their tabs, so copy the URL first: a URL in the clipboard is used when no browser tab is available.
+The Markdown, screenshot and transcript commands work on the URL typed after their keyword. Leave it empty to use the frontmost tab of Safari, Chrome, Arc, Brave, Edge, Vivaldi, Opera, Orion, Dia, Comet or Helium. Firefox and Zen can’t share their tabs, so copy the URL first: a URL in the clipboard is used when no browser tab is available.
 
 ### Markdown
 

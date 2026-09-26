@@ -425,13 +425,15 @@ function sourceURL(query, withHTML) {
     return { url: tab.url, title: tab.title, from: "browser", browser: tab.browser, html: tab.html };
   }
   if (tab && tab.unscriptable) note = `${tab.unscriptable} can’t share its tab`;
-  else if (tab && tab.error) note = `Could not read ${tab.browser}: ${oneLine(tab.error, 60)}`;
+  else if (tab && tab.error && /-1743|not (authorized|allowed) to send apple ?events/i.test(tab.error)) {
+    note = `Allow Alfred to control ${tab.browser} in System Settings › Privacy & Security › Automation`;
+  } else if (tab && tab.error) note = `Could not read ${tab.browser}: ${oneLine(tab.error, 60)}`;
   else if (tab && tab.url) note = `The ${tab.browser} tab is not a web page`;
   const clip = asURL(clipboard().trim());
   if (clip && /^https?:\/\//i.test(clip)) return { url: clip, from: "clipboard", note };
   return {
     error: "No web page",
-    hint: note ? `${note}: copy its URL first, or type a URL` : "Open a page in your browser, copy a URL, or type one",
+    hint: note ? `${note}, or copy the URL first` : "Open a page in your browser, copy a URL, or type one",
   };
 }
 

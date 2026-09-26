@@ -694,15 +694,51 @@ function extractContent(doc, base) {
       if (stats(articles[0]).len > 0.6 * articles.reduce((s, a) => s + stats(a).len, 0)) chosen = articles[0];
     }
   }
+  let merged = false;
   if (!chosen) {
     const scored = scoreCandidates(body);
     const main = first(body, (x) => x.tag === "main" || attr(x, "role") === "main");
     if (main && stats(main).len > 200 && (!scored || (isInsideNode(scored, main) && stats(scored).len < 0.5 * stats(main).len))) chosen = main;
-    else chosen = scored;
+    else if (scored) {
+      chosen = withSiblings(scored);
+      merged = chosen !== scored;
+    }
   }
-  if (!chosen || stats(chosen).len < Math.min(250, total * 0.3)) chosen = body;
+  if (!chosen || stats(chosen).len < Math.min(250, total * 0.3)) {
+    chosen = body;
+    merged = false;
+  }
   cleanContent(chosen);
+  if (merged) chosen.children = chosen.children.filter((c) => c.parent); // drop what cleaning removed
   return { node: chosen, textLength: cleanText(textOf(chosen)).length };
+}
+
+// Readability's sibling pass: content split over sibling sections (<section>…</section><section>…)
+// joins the best candidate when those siblings score well or read like paragraphs.
+function withSiblings(best) {
+  const parent = best.parent;
+  if (!parent || parent.tag === "#document") return best;
+  const threshold = Math.max(10, (best._final || 0) * 0.2);
+  const picked = [];
+  for (const sib of parent.children) {
+    if (sib === best) {
+      picked.push(sib);
+      continue;
+    }
+    if (sib.type !== 1) continue;
+    const st = stats(sib);
+    let take = sib._final !== undefined && sib._final >= threshold;
+    if (!take && (sib.tag === "p" || sib.tag === "section" || sib.tag === "div" || /^h[1-6]$|^(ul|ol|pre|blockquote|figure|table)$/.test(sib.tag))) {
+      const text = cleanText(textOf(sib));
+      take = (st.len > 80 && st.density < 0.25) || (st.len > 0 && st.len <= 80 && st.density === 0 && /[.!?:]$/.test(text)) ||
+        (/^h[1-6]$|^(pre|figure|table)$/.test(sib.tag) && st.density < 0.5 && picked.length > 0);
+    }
+    if (take && classWeight(sib) >= 0) picked.push(sib);
+  }
+  if (picked.length <= 1) return best;
+  const wrapper = el("div", {}, null);
+  wrapper.children = picked; // a view over the siblings: their parent links stay intact
+  return wrapper;
 }
 
 function isInsideNode(node, ancestor) {
