@@ -17,7 +17,7 @@ The Markdown, screenshot and transcript commands work on the URL typed after the
 
 ### Markdown
 
-Convert a web page to clean Markdown via the `tomd` keyword. Web Capture finds the article and drops menus, ads and sidebars. It keeps headings, nested lists, tables, code blocks with their language, quotes, images and links (made absolute), and adds YAML front matter with the title, URL, author and date.
+Convert a web page to clean Markdown via the `tomd` keyword. Web Capture finds the article and drops menus, ads and sidebars. It keeps headings, nested lists, tables, code blocks with their language, quotes, images and links (made absolute), and adds YAML front matter with the title, URL, author and date. Images can be left out in the Workflow’s Configuration.
 
 ![Converting a web page to Markdown](images/tomd.png)
 
@@ -32,13 +32,13 @@ Alternatively, convert a URL via the Universal Action.
 
 ### Screenshots
 
-Take a full-page screenshot via the `shot` keyword. The page is rendered in the background with the WebKit built into macOS, lazy-loaded images included, at the width set in the Workflow’s Configuration. You can also capture only the first screen, or the page at a phone’s width.
+Take a full-page screenshot via the `shot` keyword. The page is rendered in the background with the WebKit built into macOS, lazy-loaded images included, at the width set in the Workflow’s Configuration. You can also capture only the first screen, or the page at a phone’s width. The Workflow’s Configuration also sets the appearance (light, dark or like macOS, for pages with a dark mode) and the format: PNG, or JPEG for much smaller files.
 
 ![Taking a full-page screenshot](images/shot.png)
 
-* <kbd>↩</kbd> Save the PNG and reveal it in Finder.
+* <kbd>↩</kbd> Save the image and reveal it in Finder.
 * <kbd>⌘</kbd><kbd>↩</kbd> Copy the image.
-* <kbd>⌥</kbd><kbd>↩</kbd> Save the PNG and open it.
+* <kbd>⌥</kbd><kbd>↩</kbd> Save the image and open it.
 
 Screenshots don’t use your browser’s logins or cookies.
 

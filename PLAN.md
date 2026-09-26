@@ -44,11 +44,29 @@ Raycast demand this workflow replaces (downloads, 2026-09-26):
 - The code Universal Action on a single word that is a language name (like “swift”) uses the clipboard with that language.
 - Pages over 8 MB are cut; pages over 2 MB get no whole-page version.
 
+## Round 4 (post-release audit)
+- [x] Screenshots rendered the page as hidden (off-screen window = occluded): requestAnimationFrame stopped after one frame, so rAF-driven lazy loaders, fade-ins and carousels could stay blank. WebKit’s occlusion detection is now off for the capture view.
+- [x] Autoplaying media could play sound during a capture: audio now needs a user action.
+- [x] curl globbing: URLs with `[ ]` or `{ }` (`?filter[tag]=x`) failed as malformed or were fetched as several URLs (`-g`).
+- [x] Unicode URLs: macOS 13’s NSURL rejects them (“Invalid URL” in screenshots) and macOS’s curl has no IDN: hosts become Punycode and the rest is percent-encoded.
+- [x] The Local AI hand-off printed a newline on success (a possible blank notification).
+- [x] `tomd` and `ytt` fetch on each keystroke: their Script Filters now terminate the previous run (queuemode 2) instead of waiting for it, so a slow fetch for the frontmost tab no longer holds up a pasted URL. Cache writes are atomic and there are no locks; a kill-mid-fetch test covers it. `shot` and `code` never fetch while typing and keep “wait” (1).
+- [x] New: screenshot appearance (like macOS / light / dark), JPEG format, and a “Keep images” option for Markdown.
+
+## Ideas for v1.1
+1. Copy only the selected text of the frontmost tab as Markdown (browser JavaScript, same permission as “Use browser page content”).
+2. Screenshot delay setting (pages with splash screens or late animations) and an option to hide fixed headers/cookie banners on long captures.
+3. A “Links” section at the end of the Markdown (Raycast’s Webpage to Markdown offers it).
+4. YouTube transcript as SRT/VTT subtitles.
+5. `shot_width` accepts “1,280” as 1 (clamped to 320): strip non-digits.
+6. Capture the frontmost tab’s selection/element only (CSS selector).
+
 ## Verify in real Alfred
 - [ ] The four Universal Actions appear for URLs / text and fill the Script Filter query.
 - [ ] ⌘↩ pastes into the frontmost app (Markdown, links, transcripts); results over 50 KB come back through resolve.sh.
 - [ ] ⌘Y previews the cached .md / transcript; ⌘C and Large Type on large results.
-- [ ] Screenshot notifications (“Taking a screenshot…” and the result); ⌘↩ copies an image that pastes into Mail/Slack.
+- [ ] Screenshot notifications (“Taking a screenshot…” and the result); ⌘↩ copies an image that pastes into Mail/Slack (also as JPEG).
+- [ ] No blank notification after ⌃↩ hands a transcript to Local AI.
 - [ ] ⌃↩ hands the transcript to the Local AI workflow’s External Trigger.
 - [ ] First run asks for Automation permission per browser; the hint appears when it is denied.
 - [ ] Keyword changes in the Workflow’s Configuration take effect.

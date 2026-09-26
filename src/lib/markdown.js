@@ -937,6 +937,7 @@ class MarkdownConverter {
     this.base = base;
     this.title = opts.title ? cleanText(opts.title).toLowerCase() : "";
     this.skippedTitle = false;
+    this.images = opts.images !== false;
   }
 
   // "" when the link is unsafe (javascript:, data:, file:…): callers then keep only the text
@@ -1069,6 +1070,7 @@ class MarkdownConverter {
       case "img":
         return this.image(x);
       case "picture": {
+        if (!this.images) return null;
         const img = first(x, (y) => y.tag === "img");
         if (img && realSrc(img)) return this.image(img);
         const src = first(x, (y) => y.tag === "source" && attr(y, "srcset"));
@@ -1177,6 +1179,7 @@ class MarkdownConverter {
   }
 
   image(img) {
+    if (!this.images) return null;
     const src = this.url(realSrc(img));
     if (!src) return null;
     const alt = escapeText(cleanText(attr(img, "alt")));
@@ -1353,7 +1356,7 @@ function frontMatter(meta, url, captured) {
 }
 
 // Full pipeline: HTML string → { markdown, meta, words, textLength }
-// opts: { url, frontMatter: bool, extract: bool, captured: "YYYY-MM-DD" }
+// opts: { url, frontMatter: bool, extract: bool, captured: "YYYY-MM-DD", images: bool (default true) }
 function htmlToMarkdown(html, opts) {
   const doc = parseHTML(html);
   const meta = getMetadata(doc);
@@ -1369,7 +1372,7 @@ function htmlToMarkdown(html, opts) {
     node = r.node;
     textLength = r.textLength;
   }
-  const conv = new MarkdownConverter(base, { title: meta.title });
+  const conv = new MarkdownConverter(base, { title: meta.title, images: opts.images });
   const body = conv.convert(node);
   const parts = [];
   if (opts.frontMatter !== false) parts.push(frontMatter(meta, opts.url, opts.captured || isoDate(new Date().toISOString())));

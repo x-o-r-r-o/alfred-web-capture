@@ -7,7 +7,9 @@
 //   shot_full     1 = full page, 0 = first screen only
 //   shot_scale    auto | 1 | 2                 pixel density of the PNG
 //   shot_max_height  cap for very long pages, in points (default 20000)
-//   save_folder   where PNGs are saved (default ~/Downloads)
+//   shot_appearance  auto | light | dark        prefers-color-scheme of the page (auto = like macOS)
+//   shot_format   png | jpg
+//   save_folder   where screenshots are saved (default ~/Downloads)
 // Prints one line for Alfred's notification.
 ObjC.import("Foundation");
 ObjC.import("AppKit");
@@ -49,7 +51,7 @@ function fileName(url, title) {
 function uniquePath(dir, name) {
   const fm = $.NSFileManager.defaultManager;
   let p = `${dir}/${name}`, i = 2;
-  while (fm.fileExistsAtPath(p)) p = `${dir}/${name.replace(/\.png$/, "")} ${i++}.png`;
+  while (fm.fileExistsAtPath(p)) p = `${dir}/${name.replace(/\.(png|jpg)$/, "")} ${i++}.${/\.jpg$/.test(name) ? "jpg" : "png"}`;
   return p;
 }
 
@@ -121,11 +123,18 @@ function capture(url, opts) {
   const W = opts.width;
   const cfg = $.WKWebViewConfiguration.alloc.init;
   cfg.websiteDataStore = $.WKWebsiteDataStore.nonPersistentDataStore; // no cookies or cache left behind
+  // Autoplaying videos stay silent: the page is invisible, so nothing should come out of the speakers.
+  cfg.mediaTypesRequiringUserActionForPlayback = $.WKAudiovisualMediaTypeAudio;
   const frame = $.NSMakeRect(0, 0, W, VIEWPORT_H);
   const wv = $.WKWebView.alloc.initWithFrameConfiguration(frame, cfg);
   wv.customUserAgent = UA;
   const delegate = $.WCNavigationDelegate.alloc.init;
   wv.navigationDelegate = delegate;
+  // The off-screen window counts as occluded, so WebKit marked the page hidden: requestAnimationFrame
+  // stopped after one frame and scroll-triggered fade-ins, carousels and rAF-driven lazy loaders stayed
+  // blank. This WebKit setting (present on macOS 13) makes WebKit ignore the occlusion.
+  if (wv.respondsToSelector("_setWindowOcclusionDetectionEnabled:")) wv._setWindowOcclusionDetectionEnabled(false);
+  if (opts.appearance !== "auto") wv.appearance = $.NSAppearance.appearanceNamed(opts.appearance === "dark" ? $.NSAppearanceNameDarkAqua : $.NSAppearanceNameAqua);
   // An off-screen, borderless window gives WebKit a real backing store to draw into.
   const win = $.NSWindow.alloc.initWithContentRectStyleMaskBackingDefer($.NSMakeRect(-30000, -30000, W, VIEWPORT_H), 0, $.NSBackingStoreBuffered, false);
   win.contentView = wv;
@@ -133,7 +142,16 @@ function capture(url, opts) {
   view = wv;
   window_ = win;
   win.orderBack($());
-  const nsurl = $.NSURL.URLWithString(url);
+  // macOS 13's NSURL rejects Unicode, spaces and a few ASCII characters; the Script Filter already encodes
+  // them, so this only covers URLs that arrive some other way
+  let nsurl = $.NSURL.URLWithString(url);
+  if (nsurl.isNil()) nsurl = $.NSURL.URLWithString(url.replace(/%(?![0-9A-Fa-f]{2})|[^\x21-\x7e]|["<>\\^`{|}]/gu, (c) => {
+    try {
+      return encodeURIComponent(c);
+    } catch (e) {
+      return "";
+    }
+  }));
   if (nsurl.isNil()) return { error: "Invalid URL" };
   wv.loadRequest($.NSURLRequest.requestWithURLCachePolicyTimeoutInterval(nsurl, 0, opts.timeout));
 
@@ -212,17 +230,20 @@ function capture(url, opts) {
   const cg = image.CGImageForProposedRectContextHints(null, $(), $());
   const rep = cg ? $.NSBitmapImageRep.alloc.initWithCGImage(cg) : $.NSBitmapImageRep.imageRepWithData(image.TIFFRepresentation);
   if (rep.isNil()) return { error: "Could not encode the snapshot" };
-  const png = rep.representationUsingTypeProperties($.NSBitmapImageFileTypePNG, $());
+  const png = opts.format === "jpg"
+    ? rep.representationUsingTypeProperties($.NSBitmapImageFileTypeJPEG, $({ NSImageCompressionFactor: 0.85 }))
+    : rep.representationUsingTypeProperties($.NSBitmapImageFileTypePNG, $());
+  if (png.isNil()) return { error: "Could not encode the snapshot" };
   return { png, width: Number(rep.pixelsWide), height: Number(rep.pixelsHigh), title, capped: height >= opts.maxHeight || reduced };
 }
 
-function copyImage(png, path) {
+function copyImage(png, path, jpg) {
   const name = env("WC_TEST_PASTEBOARD", ""); // tests use a private pasteboard
   const pb = name ? $.NSPasteboard.pasteboardWithName(name) : $.NSPasteboard.generalPasteboard;
   pb.clearContents;
   const img = $.NSImage.alloc.initWithData(png);
   pb.writeObjects($([img, $.NSURL.fileURLWithPath(path)]));
-  pb.setDataForType(png, $.NSPasteboardTypePNG);
+  pb.setDataForType(png, jpg ? "public.jpeg" : $.NSPasteboardTypePNG);
 }
 
 function run(argv) {
@@ -235,6 +256,8 @@ function run(argv) {
     scale: ["1", "2", "3"].includes(env("shot_scale", "auto")) ? env("shot_scale", "auto") : "auto",
     maxHeight: num("shot_max_height", 20000, 1000, 60000),
     timeout: Number(env("WC_TEST_SHOT_TIMEOUT", "")) || num("fetch_timeout", 30, 5, 120) + 10,
+    appearance: ["light", "dark"].includes(env("shot_appearance", "auto").trim()) ? env("shot_appearance", "auto").trim() : "auto",
+    format: /^jpe?g$/i.test(env("shot_format", "png").trim()) ? "jpg" : "png",
   };
   let r;
   try {
@@ -255,16 +278,16 @@ function run(argv) {
   fm.createDirectoryAtPathWithIntermediateDirectoriesAttributesError(dir, true, $(), $());
   let target;
   if (action === "copy") {
-    target = `${dir}/screenshot.png`; // replaced each time: the clipboard holds the image
+    target = `${dir}/screenshot.${opts.format}`; // replaced each time: the clipboard holds the image
     if (fm.fileExistsAtPath(target)) fm.removeItemAtPathError(target, $());
-  } else target = uniquePath(dir, fileName(url, r.title));
+  } else target = uniquePath(dir, fileName(url, r.title).replace(/\.png$/, `.${opts.format}`));
   if (!r.png.writeToFileAtomically(target, true)) return `Screenshot failed: could not write to ${dir}`;
 
   const note = r.capped ? " (cut to the maximum size)" : "";
   const size = `${r.width}×${r.height}`;
   if (env("WC_TEST_NO_UI", "") === "1") return `OK ${target} ${size}${note}`;
   if (action === "copy") {
-    copyImage(r.png, target);
+    copyImage(r.png, target, opts.format === "jpg");
     return `Screenshot copied · ${size}${note}`;
   }
   const ws = $.NSWorkspace.sharedWorkspace;

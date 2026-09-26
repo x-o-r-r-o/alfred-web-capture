@@ -322,7 +322,7 @@
 				<key>queuedelaymode</key>
 				<integer>1</integer>
 				<key>queuemode</key>
-				<integer>1</integer>
+				<integer>2</integer>
 				<key>runningsubtext</key>
 				<string>Fetching the page…</string>
 				<key>script</key>
@@ -475,7 +475,7 @@
 				<key>queuedelaymode</key>
 				<integer>1</integer>
 				<key>queuemode</key>
-				<integer>1</integer>
+				<integer>2</integer>
 				<key>runningsubtext</key>
 				<string>Fetching the transcript…</string>
 				<key>script</key>
@@ -829,7 +829,7 @@ The Markdown, screenshot and transcript commands work on the URL typed after the
 
 ### Markdown
 
-Convert a web page to clean Markdown via the `tomd` keyword. Web Capture finds the article and drops menus, ads and sidebars. It keeps headings, nested lists, tables, code blocks with their language, quotes, images and links (made absolute), and adds YAML front matter with the title, URL, author and date.
+Convert a web page to clean Markdown via the `tomd` keyword. Web Capture finds the article and drops menus, ads and sidebars. It keeps headings, nested lists, tables, code blocks with their language, quotes, images and links (made absolute), and adds YAML front matter with the title, URL, author and date. Images can be left out in the Workflow’s Configuration.
 
 * &lt;kbd&gt;↩&lt;/kbd&gt; Copy the Markdown.
 * &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Paste the Markdown into the frontmost app.
@@ -842,11 +842,11 @@ Alternatively, convert a URL via the Universal Action.
 
 ### Screenshots
 
-Take a full-page screenshot via the `shot` keyword. The page is rendered in the background with the WebKit built into macOS, lazy-loaded images included, at the width set in the Workflow’s Configuration. You can also capture only the first screen, or the page at a phone’s width.
+Take a full-page screenshot via the `shot` keyword. The page is rendered in the background with the WebKit built into macOS, lazy-loaded images included, at the width set in the Workflow’s Configuration. You can also capture only the first screen, or the page at a phone’s width. The Workflow’s Configuration also sets the appearance (light, dark or like macOS, for pages with a dark mode) and the format: PNG, or JPEG for much smaller files.
 
-* &lt;kbd&gt;↩&lt;/kbd&gt; Save the PNG and reveal it in Finder.
+* &lt;kbd&gt;↩&lt;/kbd&gt; Save the image and reveal it in Finder.
 * &lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Copy the image.
-* &lt;kbd&gt;⌥&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Save the PNG and open it.
+* &lt;kbd&gt;⌥&lt;/kbd&gt;&lt;kbd&gt;↩&lt;/kbd&gt; Save the image and open it.
 
 Screenshots don’t use your browser’s logins or cookies.
 
@@ -1185,6 +1185,25 @@ Every keyword can be changed in the Workflow’s Configuration.
 			<key>config</key>
 			<dict>
 				<key>default</key>
+				<true/>
+				<key>required</key>
+				<false/>
+				<key>text</key>
+				<string>Keep images</string>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string></string>
+			<key>type</key>
+			<string>checkbox</string>
+			<key>variable</key>
+			<string>tomd_images</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
 				<false/>
 				<key>required</key>
 				<false/>
@@ -1271,6 +1290,62 @@ Every keyword can be changed in the Workflow’s Configuration.
 			<string>textfield</string>
 			<key>variable</key>
 			<string>shot_max_height</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>auto</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>Same as macOS</string>
+						<string>auto</string>
+					</array>
+					<array>
+						<string>Light</string>
+						<string>light</string>
+					</array>
+					<array>
+						<string>Dark</string>
+						<string>dark</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string>Pages with a dark mode follow this setting.</string>
+			<key>label</key>
+			<string>Screenshot appearance</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>shot_appearance</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>png</string>
+				<key>pairs</key>
+				<array>
+					<array>
+						<string>PNG</string>
+						<string>png</string>
+					</array>
+					<array>
+						<string>JPEG (smaller files)</string>
+						<string>jpg</string>
+					</array>
+				</array>
+			</dict>
+			<key>description</key>
+			<string>JPEG files are much smaller for long pages with photos.</string>
+			<key>label</key>
+			<string>Screenshot format</string>
+			<key>type</key>
+			<string>popupbutton</string>
+			<key>variable</key>
+			<string>shot_format</string>
 		</dict>
 		<dict>
 			<key>config</key>

@@ -186,11 +186,12 @@ const CURL_ERRORS = {
 };
 
 // GET (or POST with a JSON body) through curl. The URL and body go in argv / a temp file.
+// -g (--globoff): curl otherwise reads [ ] { } in a URL as a range or set (?filter[tag]=x failed as malformed).
 function fetchURL(url, opts = {}) {
   const dir = cacheDir();
   const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   const bodyFile = `${dir}/fetch-${id}.body`;
-  const args = ["-sS", "-L", "--max-redirs", "10", "--compressed", "--proto", "=http,https", "--proto-redir", "=http,https",
+  const args = ["-sS", "-g", "-L", "--max-redirs", "10", "--compressed", "--proto", "=http,https", "--proto-redir", "=http,https",
     "-m", String(opts.timeout || timeout()), "--connect-timeout", "10", "--max-filesize", String(opts.maxBytes || 20 * 1024 * 1024),
     "-A", opts.ua || UA, "-H", `Accept: ${opts.accept || "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"}`,
     "-H", "Accept-Language: en-US,en;q=0.9", "-o", bodyFile,
@@ -317,10 +318,75 @@ function lossyUTF8(data) {
 function asURL(s) {
   const t = String(s || "").trim();
   if (!t || /\s/.test(t)) return null;
-  if (/^https?:\/\/[^\s/?#]+/i.test(t)) return t;
-  if (/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/|$)/i.test(t)) return `http://${t}`;
-  if (/^(www\.)?[\p{L}\p{N}-]+(\.[\p{L}\p{N}-]+)*\.[\p{L}]{2,}(:\d+)?([/?#]\S*)?$/u.test(t)) return `https://${t}`;
+  if (/^https?:\/\/[^\s/?#]+/i.test(t)) return asciiURL(t);
+  if (/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/|$)/i.test(t)) return asciiURL(`http://${t}`);
+  if (/^(www\.)?[\p{L}\p{N}-]+(\.[\p{L}\p{N}-]+)*\.[\p{L}]{2,}(:\d+)?([/?#]\S*)?$/u.test(t)) return asciiURL(`https://${t}`);
   return null;
+}
+
+// URLs as typed or copied can hold Unicode, spaces, [ ] { } | and stray %. macOS 13's NSURL rejects them
+// (WebKit then said "Invalid URL"), and the curl in macOS has no IDN support and treats [ ] { } as globs.
+// Percent-encode those characters and turn an international host name into Punycode (as browsers do).
+function asciiURL(u) {
+  const m = /^(https?:\/\/)([^/?#]*)([\s\S]*)$/i.exec(u);
+  if (!m) return u;
+  const at = m[2].lastIndexOf("@");
+  const userinfo = m[2].slice(0, at + 1);
+  let host = m[2].slice(at + 1);
+  const hp = /^([^:]*)(:\d*)?$/.exec(host);
+  if (hp && /[^\x00-\x7f]/.test(hp[1])) {
+    host = hp[1].split(/[.\u3002\uff0e\uff61]/).map((l) => (/[^\x00-\x7f]/.test(l) ? `xn--${punycode(l.normalize("NFC").toLowerCase())}` : l)).join(".") + (hp[2] || "");
+  }
+  return m[1] + encodeInvalid(userinfo) + host + encodeInvalid(m[3]);
+}
+function encodeInvalid(s) {
+  return s.replace(/%(?![0-9A-Fa-f]{2})|[^\x21-\x7e]|["<>\\^`{|}[\]]/gu, (c) => {
+    try {
+      return encodeURIComponent(c);
+    } catch (e) {
+      return "%EF%BF%BD"; // a lone surrogate
+    }
+  });
+}
+// RFC 3492 Punycode encoding of one host label.
+function punycode(label) {
+  const BASE = 36, TMIN = 1, TMAX = 26;
+  const cps = Array.from(label).map((c) => c.codePointAt(0));
+  let out = cps.filter((c) => c < 128).map((c) => String.fromCharCode(c)).join("");
+  const b = out.length;
+  let n = 128, delta = 0, bias = 72, h = b;
+  if (b) out += "-";
+  const digit = (d) => String.fromCharCode(d + 22 + (d < 26 ? 75 : 0));
+  const adapt = (d, num, first) => {
+    d = first ? Math.floor(d / 700) : d >> 1;
+    d += Math.floor(d / num);
+    let k = 0;
+    for (; d > ((BASE - TMIN) * TMAX) >> 1; k += BASE) d = Math.floor(d / (BASE - TMIN));
+    return k + Math.floor(((BASE - TMIN + 1) * d) / (d + 38));
+  };
+  while (h < cps.length) {
+    const m = Math.min(...cps.filter((c) => c >= n));
+    delta += (m - n) * (h + 1);
+    n = m;
+    for (const c of cps) {
+      if (c < n) delta++;
+      if (c !== n) continue;
+      let q = delta;
+      for (let k = BASE; ; k += BASE) {
+        const t = k <= bias ? TMIN : k >= bias + TMAX ? TMAX : k - bias;
+        if (q < t) break;
+        out += digit(t + ((q - t) % (BASE - t)));
+        q = Math.floor((q - t) / (BASE - t));
+      }
+      out += digit(q);
+      bias = adapt(delta, h + 1, h === b);
+      delta = 0;
+      h++;
+    }
+    delta++;
+    n++;
+  }
+  return out;
 }
 
 function hostOf(url) {
@@ -467,7 +533,7 @@ function sourceURL(query, withHTML) {
   const tab = frontTab(withHTML);
   let note = "";
   if (tab && tab.url && /^https?:\/\//i.test(tab.url)) {
-    return { url: tab.url, title: tab.title, from: "browser", browser: tab.browser, html: tab.html };
+    return { url: asciiURL(tab.url), title: tab.title, from: "browser", browser: tab.browser, html: tab.html };
   }
   if (tab && tab.unscriptable) note = `${tab.unscriptable} can’t share its tab`;
   else if (tab && tab.error && /-1743|not (authorized|allowed) to send apple ?events/i.test(tab.error)) {
@@ -516,6 +582,7 @@ function decodeURIComponentSafe(s) {
 // Fetch + convert. Returns {title, markdown, full, words, textLength, url, note, via} or {error, subtitle, items}
 function convertPage(src) {
   const frontMatter = env("tomd_front_matter", "1") !== "0";
+  const images = env("tomd_images", "1") !== "0";
   let html = null, finalURL = src.url, via = "";
   const notes = [];
   if (src.from === "browser" && env("tomd_browser_html", "0") === "1") {
@@ -572,9 +639,9 @@ function convertPage(src) {
     notes.push("Very large page: only the first 8 MB were converted");
   }
   const captured = today();
-  const main = MD.htmlToMarkdown(html, { url: finalURL, frontMatter, extract: true, captured });
+  const main = MD.htmlToMarkdown(html, { url: finalURL, frontMatter, extract: true, captured, images });
   // The whole-page version doubles the time; on very large pages (seconds each in JavaScriptCore) it is skipped.
-  const full = html.length <= FULL_PAGE_MAX ? MD.htmlToMarkdown(html, { url: finalURL, frontMatter, extract: false, captured }) : { markdown: null, words: 0 };
+  const full = html.length <= FULL_PAGE_MAX ? MD.htmlToMarkdown(html, { url: finalURL, frontMatter, extract: false, captured, images }) : { markdown: null, words: 0 };
   if (main.textLength < 200) {
     notes.push(src.from === "browser" && via === ""
       ? "Little text found: the page may need a login or JavaScript. Try “Use browser page content”"
@@ -592,7 +659,8 @@ function tomdItems(query) {
   const src = sourceURL(query, withHTML);
   if (src.error) return [info(src.error, src.hint, src.error === "Not a URL" ? "error" : "info")];
 
-  const settings = [env("tomd_front_matter", "1"), withHTML && src.from === "browser" ? "b" : ""].join();
+  // ",noimg" is only added when images are off, so v1.0.0 cache keys stay valid
+  const settings = [env("tomd_front_matter", "1"), withHTML && src.from === "browser" ? "b" : ""].join() + (env("tomd_images", "1") === "0" ? ",noimg" : "");
   const key = hashKey(`${src.url}|${settings}`);
   const dir = mkdirs(`${cacheDir()}/md-${key}`);
   const metaPath = `${dir}/result.json`;
@@ -1168,12 +1236,12 @@ function handoffAction(arg) {
   if (!localAIInstalled()) return "Install the Local AI workflow to summarize transcripts";
   if (log) {
     writeFile(log, JSON.stringify({ trigger: LOCAL_AI_TRIGGER, workflow: LOCAL_AI, argument: text }));
-    return "";
+    return undefined; // success prints nothing: "" still printed a newline, a blank notification
   }
   try {
     const alfred = Application("com.runningwithcrayons.Alfred");
     alfred.runTrigger(LOCAL_AI_TRIGGER, { inWorkflow: LOCAL_AI, withArgument: text });
-    return "";
+    return undefined;
   } catch (e) {
     return `Could not reach the Local AI workflow: ${oneLine(String(e.message || e), 80)}`;
   }
@@ -1195,7 +1263,7 @@ function run(argv) {
       case "convert": { // developer/test helper: convert <html file> <url> [full]
         const html = readFile(rest[0]);
         if (html === null) return "No such file";
-        return MD.htmlToMarkdown(html, { url: rest[1] || "https://example.com/", frontMatter: env("tomd_front_matter", "1") !== "0", extract: rest[2] !== "full", captured: "2026-01-01" }).markdown;
+        return MD.htmlToMarkdown(html, { url: rest[1] || "https://example.com/", frontMatter: env("tomd_front_matter", "1") !== "0", extract: rest[2] !== "full", captured: "2026-01-01", images: env("tomd_images", "1") !== "0" }).markdown;
       }
       default: return output([info(`Unknown command: ${cmd}`, "", "error")]);
     }

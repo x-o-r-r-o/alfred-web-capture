@@ -108,6 +108,17 @@
     },
     {
       "type": "checkbox",
+      "variable": "tomd_images",
+      "label": "",
+      "description": "",
+      "config": {
+        "default": true,
+        "required": false,
+        "text": "Keep images"
+      }
+    },
+    {
+      "type": "checkbox",
       "variable": "tomd_browser_html",
       "label": "",
       "description": "Reads the frontmost tab’s page instead of downloading it. Needs “Allow JavaScript from Apple Events” in the browser.",
@@ -162,6 +173,48 @@
         "placeholder": "20000",
         "required": false,
         "trim": true
+      }
+    },
+    {
+      "type": "popupbutton",
+      "variable": "shot_appearance",
+      "label": "Screenshot appearance",
+      "description": "Pages with a dark mode follow this setting.",
+      "config": {
+        "default": "auto",
+        "pairs": [
+          [
+            "Same as macOS",
+            "auto"
+          ],
+          [
+            "Light",
+            "light"
+          ],
+          [
+            "Dark",
+            "dark"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "popupbutton",
+      "variable": "shot_format",
+      "label": "Screenshot format",
+      "description": "JPEG files are much smaller for long pages with photos.",
+      "config": {
+        "default": "png",
+        "pairs": [
+          [
+            "PNG",
+            "png"
+          ],
+          [
+            "JPEG (smaller files)",
+            "jpg"
+          ]
+        ]
       }
     },
     {
@@ -404,6 +457,7 @@
       "subtext": "The frontmost tab, a URL, or the clipboard",
       "running": "Fetching the page…",
       "queuedelaymode": 1,
+      "queuemode": 2,
       "script": "osascript -l JavaScript ./webcapture.js tomd \"$1\""
     },
     {
@@ -430,6 +484,7 @@
       "subtext": "The frontmost tab, a URL, or the clipboard",
       "running": "Fetching the transcript…",
       "queuedelaymode": 1,
+      "queuemode": 2,
       "script": "osascript -l JavaScript ./webcapture.js ytt \"$1\""
     },
     {

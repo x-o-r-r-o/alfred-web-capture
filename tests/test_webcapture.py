@@ -5,16 +5,19 @@ HTTP server (web pages and YouTube), with the browser tab and clipboard stubbed 
     python3 tests/test_webcapture.py          # offline suite
     WC_LIVE=1 python3 tests/test_webcapture.py  # also hit the real web (example.com, YouTube)
 """
-import base64, json, os, plistlib, re, shutil, struct, subprocess, sys, tempfile, threading, time, unittest, zlib
+import base64, glob, json, os, plistlib, re, shutil, struct, subprocess, sys, tempfile, threading, time, unittest, zlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "src")
 FIX = os.path.join(ROOT, "tests", "fixtures")
-TMP = tempfile.mkdtemp(prefix="webcapture-test-")
-CACHE = os.path.join(TMP, "cache")
-SAVE = os.path.join(TMP, "saved")
+# round 4: realistic Alfred paths, with spaces
+TMP = tempfile.mkdtemp(prefix="webcapture test ")
+BUNDLE = "io.github.x-o-r-r-o.web-capture"
+CACHE = os.path.join(TMP, "Caches", "com.runningwithcrayons.Alfred", "Workflow Data", BUNDLE)
+DATA = os.path.join(TMP, "Application Support", "Alfred", "Workflow Data", BUNDLE)
+SAVE = os.path.join(TMP, "Saved Files")
 LIVE = os.environ.get("WC_LIVE") == "1"
 
 
@@ -153,6 +156,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, "<p>late</p>")
         if p == "/redirect-loop":
             return self.send(302, "", headers={"Location": "/redirect-loop"})
+        if p == "/visible":  # round 4: the off-screen page must count as visible (rAF runs) and follow the appearance
+            return self.send(200, "<html><head><title>x</title></head><body>hi<script>var r=0;(function f(){r++;requestAnimationFrame(f)})();"
+                             "setInterval(function(){document.title=[matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light',"
+                             "document.visibilityState,r>5?'raf':'noraf'].join(' ')},50)</script></body></html>")
         if p == "/shot":
             return self.send(200, '<html><head><title>Tall: “page”/test</title></head><body style="margin:0"><div style="height:2500px;background:linear-gradient(red,blue)">Tall</div></body></html>')
         # --- YouTube ---
@@ -210,7 +217,8 @@ BASE = f"http://127.0.0.1:{SERVER.server_address[1]}"
 
 def base_env(**extra):
     e = {k: v for k, v in os.environ.items() if not k.startswith(("WC_", "alfred_", "tomd_", "shot_", "code_", "ytt_", "save_"))}
-    e.update(alfred_workflow_cache=CACHE, save_folder=SAVE, WC_TEST_TAB="none", WC_TEST_CLIPBOARD="", WC_TEST_NO_UI="1",
+    e.update(alfred_workflow_cache=CACHE, alfred_workflow_data=DATA, alfred_workflow_bundleid=BUNDLE, alfred_version="5.6",
+             alfred_workflow_name="Web Capture", alfred_debug="0", save_folder=SAVE, WC_TEST_TAB="none", WC_TEST_CLIPBOARD="", WC_TEST_NO_UI="1",
              WC_YT_BASE=BASE, WC_TEST_LOCAL_AI="0")
     e.update({k: str(v) for k, v in extra.items()})
     return e
@@ -358,6 +366,51 @@ class TomdTests(unittest.TestCase):
         for junk in ("Home", "Popular", "not content", "Tweet", "© 2025", "color: red", "javascript"):
             self.assertNotIn(junk, md)
         self.assertIn("Line  \nbreak.", md)
+
+    def test_images_can_be_left_out(self):
+        # round 4: "Keep images" off drops images (and image-only links) from the Markdown
+        md = md_of(sf("tomd", f"{BASE}/blog/coffee", tomd_images="0"))
+        self.assertNotIn("![", md)
+        self.assertIn("*A fresh cup*", md)
+        self.assertIn("## What you need", md)
+        self.assertIn("![A cup]", md_of(sf("tomd", f"{BASE}/blog/coffee")))  # a separate cache entry
+
+    def test_brackets_and_braces_in_urls(self):
+        # round 4: curl read [ ] { } as globs: "?filter[tag]=x" failed as "The URL is malformed"
+        it = sf("tomd", f"{BASE}/blog/coffee?filter[tag]=x&q={{a,b}}|c")
+        self.assertEqual(it[0]["title"], "How to Brew Coffee")
+        r = requests_to("/blog/coffee")[-1]
+        self.assertEqual(r["query"], {"filter[tag]": ["x"], "q": ["{a,b}|c"]})
+
+    def test_unicode_urls_are_encoded(self):
+        # round 4: macOS 13's NSURL rejects Unicode (the screenshot said "Invalid URL"), and macOS's curl has no IDN
+        it = sf("shot", "https://bücher.de/Käse und Brot?q=ä")
+        self.assertEqual(it[0]["title"], "Not a URL")  # spaces still mean it isn't a URL
+        it = sf("shot", "https://bücher.de/Käse?q=ä#Ü")
+        self.assertEqual(it[0]["arg"], "https://xn--bcher-kva.de/K%C3%A4se?q=%C3%A4#%C3%9C")
+        self.assertEqual(sf("shot", "例え.テスト/パス")[0]["arg"], "https://xn--r8jz45g.xn--zckzah/%E3%83%91%E3%82%B9")
+        self.assertEqual(sf("shot", "https://münchen.de:8080/%E2%9C%93%zz")[0]["arg"], "https://xn--mnchen-3ya.de:8080/%E2%9C%93%25zz")
+        it = sf("shot", WC_TEST_TAB=tab("https://ουτοπία.δπθ.gr/"))
+        self.assertEqual(it[0]["arg"], "https://xn--kxae4bafwg.xn--pxaix.gr/")
+        self.assertEqual(sf("tomd", f"{BASE}/blog/coffee?q=café")[0]["title"], "How to Brew Coffee")
+        self.assertEqual(requests_to("/blog/coffee")[-1]["query"], {"q": ["café"]})
+
+    def test_killed_mid_fetch_leaves_no_broken_state(self):
+        # round 4: tomd and ytt use "terminate previous script" (they fetch on each keystroke), so a run
+        # can be killed at any point: no half-written cache entry, no lock, and the next run works
+        proc = subprocess.Popen(["/bin/bash", "-c", 'osascript -l JavaScript ./webcapture.js tomd "$1"', "--", f"{BASE}/slow"],
+                                cwd=SRC, env=base_env(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
+        deadline = time.time() + 5
+        while not requests_to("/slow") and time.time() < deadline:
+            time.sleep(0.05)
+        os.killpg(proc.pid, 15)
+        proc.communicate(timeout=10)
+        self.assertEqual(glob.glob(os.path.join(CACHE, "md-*", "result.json")), [])
+        self.assertEqual(glob.glob(os.path.join(CACHE, "*lock*")), [])
+        self.assertEqual(sf("tomd", f"{BASE}/blog/coffee")[0]["title"], "How to Brew Coffee")
+        with open(os.path.join(ROOT, "workflow.json")) as f:
+            modes = {o["id"]: o.get("queuemode", 1) for o in json.load(f)["objects"] if o["type"] == "scriptfilter"}
+        self.assertEqual(modes, {"sf_tomd": 2, "sf_ytt": 2, "sf_shot": 1, "sf_code": 1})
 
     def test_quicklook_and_mods(self):
         it = sf("tomd", f"{BASE}/blog/coffee")
@@ -561,7 +614,7 @@ class TomdTests(unittest.TestCase):
         self.assertNotIn("Logged-in", md_of(it))
 
     def test_injection_safe(self):
-        marker = os.path.join(TMP, "pwned")
+        marker = os.path.join(tempfile.mkdtemp(prefix="wc-marker-"), "pwned")  # TMP has spaces, which end a URL
         q = f"{BASE}/blog/coffee?x=\"';$(touch${{IFS}}{marker})`touch${{IFS}}{marker}`"
         it = sf("tomd", q)
         self.assertEqual(it[0]["title"], "How to Brew Coffee")
@@ -848,6 +901,21 @@ class ShotTests(unittest.TestCase):
         self.assertTrue(path.startswith(SAVE))
         self.assertEqual(self.png_size(path), (400, 2500))
 
+    def test_page_is_visible_and_follows_the_appearance(self):
+        # round 4: the off-screen window made WebKit hide the page: requestAnimationFrame stopped after one frame
+        for look in ("light", "dark"):
+            out = run("./snapshot.js", [f"{BASE}/visible"], shot_width="320", shot_scale="1", shot_full="0", shot_appearance=look).strip()
+            self.assertTrue(os.path.basename(out[3:]).startswith(f"{look} visible raf "), out)
+
+    def test_jpeg_format(self):
+        out = run("./snapshot.js", [f"{BASE}/shot"], shot_width="320", shot_scale="1", shot_full="0", shot_format="jpg").strip()
+        path = out[3:].split(" 320×")[0]
+        self.assertTrue(path.endswith(".jpg"), path)
+        with open(path, "rb") as f:
+            self.assertEqual(f.read(3), b"\xff\xd8\xff")
+        out = run("./snapshot.js", [f"{BASE}/shot"], shot_width="320", shot_scale="1", shot_action="copy", shot_format="jpg").strip()
+        self.assertTrue(out[3:].split(" 320×")[0].endswith("/screenshot.jpg"), out)
+
     def test_first_screen_and_scale(self):
         out = run("./snapshot.js", [f"{BASE}/shot"], shot_width="320", shot_scale="2", shot_full="0").strip()
         path = out[3:].rsplit(" ", 1)[0]
@@ -1091,7 +1159,9 @@ class YouTubeTests(unittest.TestCase):
         self.assertTrue(ctrl["valid"])
         log = os.path.join(TMP, "handoff.json")
         out = run("./webcapture.js", ["handoff", ctrl["arg"]], WC_TEST_LOCAL_AI="1", WC_TEST_HANDOFF=log)
-        self.assertEqual(out.strip(), "")
+        # round 4: the action feeds a notification ("only show if populated"): success prints nothing at all,
+        # not even the newline a JXA run() returning "" prints
+        self.assertEqual(out, "")
         with open(log) as f:
             call = json.load(f)
         self.assertEqual((call["trigger"], call["workflow"]), ("summarize", "io.github.x-o-r-r-o.local-ai"))
