@@ -855,6 +855,10 @@ function trackName(t) {
   return n.simpleText || (n.runs || []).map((r) => r.text).join("") || t.languageCode;
 }
 
+function otherTracks(tracks, chosen) {
+  return tracks.filter((t) => t !== chosen).map((t) => ({ code: t.languageCode, name: trackName(t), asr: t.kind === "asr" }));
+}
+
 // Manual captions in a preferred language first, then auto-generated ones, then whatever exists.
 // (Auto-translation through &tlang= is rate-limited by YouTube, so it isn't used.)
 function chooseTrack(tracks, prefs, preferAuto) {
@@ -932,7 +936,7 @@ function fetchTranscript(id, prefs, preferAuto) {
   // Caption URLs marked "exp=xpe" need a proof-of-origin token that only a real YouTube player can make
   // (youtube-transcript-api reports these as PoTokenRequired); they return an empty document.
   if (/[?&]exp=xpe\b/.test(choice.track.baseUrl)) {
-    return { error: "YouTube hides these captions from scripts", subtitle: "They need a token only the YouTube player can make: try again later, or copy the transcript from YouTube’s “Show transcript” panel", meta };
+    return { error: "YouTube hides these captions from scripts", subtitle: "They need a token only the YouTube player can make: try again later, or copy the transcript from YouTube’s “Show transcript” panel", meta, others: otherTracks(tracks, choice.track) };
   }
   let url = choice.track.baseUrl.replace(/&fmt=[^&]*/g, "");
   if (!/^https?:\/\//.test(url)) url = ytBase() + url;
@@ -941,7 +945,7 @@ function fetchTranscript(id, prefs, preferAuto) {
   if (!tt.ok) return { error: tt.status === 429 ? "YouTube is rate-limiting this Mac (HTTP 429)" : httpError(tt.status), meta };
   const snippets = parseTimedText(dataToString(tt.data) || "");
   if (!snippets.length) {
-    return { error: "The transcript is empty", subtitle: `YouTube returned no caption text${tracks.length > 1 ? ": pick another language below" : ": try again later"}`, meta, others: tracks.filter((t) => t !== choice.track).map((t) => ({ code: t.languageCode, name: trackName(t), asr: t.kind === "asr" })) };
+    return { error: "The transcript is empty", subtitle: `YouTube returned no caption text${tracks.length > 1 ? ": pick another language below" : ": try again later"}`, meta, others: otherTracks(tracks, choice.track) };
   }
   let label = trackName(choice.track);
   if (choice.track.kind === "asr" && !/auto/i.test(label)) label += " (auto-generated)";
@@ -952,7 +956,7 @@ function fetchTranscript(id, prefs, preferAuto) {
     label,
     generated: choice.track.kind === "asr",
     snippets,
-    others: tracks.filter((t) => t !== choice.track).map((t) => ({ code: t.languageCode, name: trackName(t), asr: t.kind === "asr" })),
+    others: otherTracks(tracks, choice.track),
   };
 }
 

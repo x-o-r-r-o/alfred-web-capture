@@ -26,7 +26,7 @@ Convert a web page to clean Markdown via the `tomd` keyword. Web Capture finds t
 * <kbd>⌥</kbd><kbd>↩</kbd> Save it as a .md file in the folder set in the Workflow’s Configuration.
 * <kbd>⌘</kbd><kbd>Y</kbd> Quick Look the Markdown.
 
-The whole page (without extracting the article) and a Markdown link to the page are offered below. Plain text and Markdown files are copied as they are, and JSON, CSV or XML go in a code block.
+The whole page (without extracting the article, for pages under 2 MB) and a Markdown link to the page are offered below. Plain text and Markdown files are copied as they are, and JSON, CSV or XML go in a code block.
 
 Alternatively, convert a URL via the Universal Action.
 

@@ -138,7 +138,7 @@ function capture(url, opts) {
   wv.loadRequest($.NSURLRequest.requestWithURLCachePolicyTimeoutInterval(nsurl, 0, opts.timeout));
 
   const loadEnd = Date.now() + opts.timeout * 1000;
-  deadline = loadEnd + 20000; // settling, scrolling and resizing get at most 20 s more
+  deadline = loadEnd + 30000; // settling, scrolling and resizing get at most 30 s more
   while (!navFinished && !navError && Date.now() < loadEnd) spin(0.05);
   if (navError) return { error: navError };
   // WebKit already refuses http → file: redirects; never capture anything but a web page anyway

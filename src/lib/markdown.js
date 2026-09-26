@@ -299,14 +299,6 @@ function cleanText(s) {
   return s.replace(/\s+/g, " ").trim();
 }
 
-function remove(node) {
-  const p = node.parent;
-  if (!p) return;
-  const k = p.children.indexOf(node);
-  if (k >= 0) p.children.splice(k, 1);
-  node.parent = null;
-}
-
 // Remove many nodes at once: one pass per parent instead of indexOf + splice per node (quadratic).
 function removeAll(nodes) {
   const parents = new Set();
