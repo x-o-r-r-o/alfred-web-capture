@@ -93,7 +93,8 @@ function hashKey(s) {
   return h.toString(16).padStart(8, "0");
 }
 function safeFileName(s, ext) {
-  const base = String(s).replace(/[\/\\:*?"<>|\u0000-\u001f]+/g, " ").replace(/^[.\s]+/, "").replace(/\s+/g, " ").trim().slice(0, 120) || "Untitled";
+  const clean = String(s).replace(/[\/\\:*?"<>|\u0000-\u001f]+/g, " ").replace(/^[.\s]+/, "").replace(/\s+/g, " ").trim();
+  const base = Array.from(clean).slice(0, 120).join("").trim() || "Untitled"; // never split an emoji
   return `${base}.${ext}`;
 }
 // Large values are written to the cache; resolve.sh reads them back after selection.
@@ -222,10 +223,48 @@ function decodeHTML(data, contentType) {
     if (cf !== 0xffffffff && cf !== -1) enc = $.CFStringConvertEncodingToNSStringEncoding(cf);
   }
   let s = dataToString(data, enc);
+  if (s === null && enc === $.NSUTF8StringEncoding) s = lossyUTF8(data);
   if (s === null) s = dataToString(data, 12 /* Windows-1252 */);
   if (s === null) s = dataToString(data, $.NSISOLatin1StringEncoding) || "";
   if (s.charCodeAt(0) === 0xfeff) s = s.slice(1);
   return { text: s, charset: charset || "utf-8" };
+}
+
+// UTF-8 with a few bad bytes: replace them with U+FFFD (as browsers do) instead of reading the whole
+// page as Windows-1252. Decoded by hand: Foundation has no lossy UTF-8 initializer usable from JXA.
+function lossyUTF8(data) {
+  const b = dataToString(data, $.NSISOLatin1StringEncoding) || "";
+  const out = [];
+  let chunk = "";
+  for (let i = 0; i < b.length; ) {
+    const c = b.charCodeAt(i);
+    let cp = -1, need = 0;
+    if (c < 0x80) { cp = c; need = 0; }
+    else if (c >= 0xc2 && c <= 0xdf) { cp = c & 0x1f; need = 1; }
+    else if (c >= 0xe0 && c <= 0xef) { cp = c & 0x0f; need = 2; }
+    else if (c >= 0xf0 && c <= 0xf4) { cp = c & 0x07; need = 3; }
+    let j = 1;
+    for (; j <= need; j++) {
+      const d = b.charCodeAt(i + j);
+      if (!(d >= 0x80 && d <= 0xbf)) break;
+      cp = (cp << 6) | (d & 0x3f);
+    }
+    if (cp < 0 || j <= need || (need === 2 && cp < 0x800) || (need === 3 && (cp < 0x10000 || cp > 0x10ffff)) || (cp >= 0xd800 && cp <= 0xdfff)) {
+      chunk += "\uFFFD";
+      i += Math.max(1, j === 1 ? 1 : j);
+    } else {
+      chunk += String.fromCodePoint(cp);
+      i += need + 1;
+    }
+    if (chunk.length > 8192) {
+      out.push(chunk);
+      chunk = "";
+    }
+  }
+  out.push(chunk);
+  const s = out.join("");
+  // only if it really is mostly UTF-8
+  return (s.match(/\uFFFD/g) || []).length < s.length / 50 + 1 ? s : null;
 }
 
 // ---------- URL sources ----------
@@ -405,6 +444,7 @@ function sourceLabel(src) {
 // ---------- tomd: web page → Markdown ----------
 
 const TEXT_TYPES = /^(text\/plain|text\/markdown|text\/x-markdown)/;
+const FEED_TYPE = /^application\/([\w.-]+\+)?xml$|^text\/xml$/;
 const CODE_TYPES = { "application/json": "json", "text/csv": "csv", "text/xml": "xml", "application/xml": "xml", "text/css": "css", "application/javascript": "javascript", "text/javascript": "javascript", "application/x-yaml": "yaml", "text/yaml": "yaml" };
 
 function today() {
@@ -458,13 +498,13 @@ function convertPage(src) {
       const text = decodeHTML(r.data, r.contentType).text;
       return { title: fileLabel(finalURL), markdown: text.endsWith("\n") ? text : text + "\n", full: null, words: countWords(text), textLength: text.length, url: finalURL, note: "Plain text: copied as is" };
     }
-    if (CODE_TYPES[type]) {
+    if (CODE_TYPES[type] || (FEED_TYPE.test(type) && type !== "application/xhtml+xml")) {
       const text = decodeHTML(r.data, r.contentType).text.replace(/\n$/, "");
       const fence = (text.match(/`{3,}/g) || []).reduce((f, m) => (m.length >= f.length ? "`".repeat(m.length + 1) : f), "```");
-      return { title: fileLabel(finalURL), markdown: `${fence}${CODE_TYPES[type]}\n${text}\n${fence}\n`, full: null, words: countWords(text), textLength: text.length, url: finalURL, note: `${type} wrapped in a code block` };
+      return { title: fileLabel(finalURL), markdown: `${fence}${CODE_TYPES[type] || "xml"}\n${text}\n${fence}\n`, full: null, words: countWords(text), textLength: text.length, url: finalURL, note: `${type} wrapped in a code block` };
     }
     if (type && !/html|xml/.test(type)) {
-      const kind = /pdf/.test(type) ? "PDF" : /^image\//.test(type) ? "image" : /^video\//.test(type) ? "video" : /^audio\//.test(type) ? "audio file" : type;
+      const kind = /pdf/.test(type) ? "PDF" : /^image\//.test(type) ? "image" : /^video\//.test(type) ? "video" : /^audio\//.test(type) ? "audio file" : `file (${type})`;
       const name = fileLabel(finalURL);
       const link = /^image\//.test(type) ? `![${MD.escapeText(name)}](${finalURL})` : `[${MD.escapeText(name)}](${finalURL})`;
       return {
@@ -824,13 +864,13 @@ function fetchTranscript(id, prefs, preferAuto) {
   }
   const ps = data.playabilityStatus || {};
   const details = data.videoDetails || {};
+  const ogTitle = (/<meta property="og:title" content="([^"]*)"/.exec(html) || [])[1];
   const meta = {
     id,
-    title: details.title || (/<meta property="og:title" content="([^"]*)"/.exec(html) || [])[1] || id,
+    title: details.title || (ogTitle ? MD.decodeEntities(ogTitle) : id), // videoDetails is plain text, og:title is HTML
     channel: details.author || "",
     seconds: parseInt(details.lengthSeconds, 10) || 0,
   };
-  meta.title = MD.decodeEntities(meta.title);
   if (ps.status && ps.status !== "OK") {
     const [error, subtitle] = youtubeError(ps.status, ps.reason);
     return { error, subtitle, meta };
@@ -878,6 +918,7 @@ function transcriptTexts(r) {
 
 // Is the Local AI workflow installed? Looks for its bundle id in Alfred's workflow folders (cached 10 min).
 const LOCAL_AI = "io.github.x-o-r-r-o.local-ai";
+const LOCAL_AI_TRIGGER = "summarize";
 function localAIInstalled() {
   const fake = env("WC_TEST_LOCAL_AI", null);
   if (fake !== null) return fake === "1";
@@ -891,7 +932,10 @@ function localAIInstalled() {
   if (!list.isNil()) {
     for (let i = 0; i < list.count && !found; i++) {
       const plist = $.NSDictionary.dictionaryWithContentsOfFile(`${dir}/${list.objectAtIndex(i).js}/info.plist`);
-      if (!plist.isNil() && !plist.objectForKey("bundleid").isNil() && plist.objectForKey("bundleid").js === LOCAL_AI) found = true;
+      if (plist.isNil() || plist.objectForKey("bundleid").isNil() || plist.objectForKey("bundleid").js !== LOCAL_AI) continue;
+      // it must also have the External Trigger we call
+      const objects = ObjC.deepUnwrap(plist.objectForKey("objects")) || [];
+      found = objects.some((o) => o.type === "alfred.workflow.trigger.external" && o.config && o.config.triggerid === LOCAL_AI_TRIGGER);
     }
   }
   writeFile(cache, found ? "1" : "0");
@@ -982,7 +1026,7 @@ function yttItems(query) {
 // ---------- actions ----------
 
 function insideCache(path) {
-  const cache = cacheDir().replace(/\/+$/, "");
+  const cache = $(cacheDir()).stringByStandardizingPath.js.replace(/\/+$/, "");
   const p = $(path).stringByStandardizingPath.js;
   return p.startsWith(cache + "/") && !p.includes("/../");
 }
@@ -1022,12 +1066,12 @@ function handoffAction(arg) {
   const log = env("WC_TEST_HANDOFF", ""); // tests record the call instead of calling Alfred
   if (!localAIInstalled()) return "Install the Local AI workflow to summarize transcripts";
   if (log) {
-    writeFile(log, JSON.stringify({ trigger: "summarize", workflow: LOCAL_AI, argument: text }));
+    writeFile(log, JSON.stringify({ trigger: LOCAL_AI_TRIGGER, workflow: LOCAL_AI, argument: text }));
     return "";
   }
   try {
     const alfred = Application("com.runningwithcrayons.Alfred");
-    alfred.runTrigger("summarize", { inWorkflow: LOCAL_AI, withArgument: text });
+    alfred.runTrigger(LOCAL_AI_TRIGGER, { inWorkflow: LOCAL_AI, withArgument: text });
     return "";
   } catch (e) {
     return `Could not reach the Local AI workflow: ${oneLine(String(e.message || e), 80)}`;

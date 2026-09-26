@@ -76,7 +76,8 @@ function el(tag, attrs, parent) {
 function parseHTML(html) {
   const doc = el("#document", {}, null);
   const stack = [doc];
-  const lower = html.toLowerCase();
+  // ASCII-only lowercase keeps indexes aligned ("İ".toLowerCase() is two code units long)
+  const lower = html.replace(/[A-Z]+/g, (m) => m.toLowerCase());
   const n = html.length;
   let i = 0, textStart = 0;
   const cur = () => stack[stack.length - 1];
@@ -468,7 +469,7 @@ const JUNK_TAGS = new Set(["script", "style", "noscript", "template", "svg", "ca
 const INVISIBLE_TAGS = new Set(["script", "style", "template", "svg", "canvas", "object", "embed", "applet", "link", "meta", "head",
   "button", "select", "textarea", "input", "map", "area", "frame", "frameset", "dialog"]);
 const JUNK_ROLES = /^(navigation|banner|contentinfo|complementary|dialog|alertdialog|menu|menubar|search|toolbar|tablist|button)$/i;
-const KEEP_TAGS = new Set(["body", "html", "article", "main", "table", "tbody", "thead", "tr", "td", "th", "pre", "code", "figure", "picture", "img", "a", "li", "ul", "ol"]);
+const KEEP_TAGS = new Set(["body", "html", "article", "main", "table", "tbody", "thead", "tr", "td", "th", "pre", "code", "figure", "picture", "img"]);
 
 function classWeight(node) {
   let w = 0;
@@ -512,14 +513,12 @@ function prepare(root, base, light) {
       return false;
     }
     if (x.tag === "noscript") {
-      // lazy-loading pages put the real <img> inside <noscript>
-      const imgs = x.children.length ? parseHTML(x.children.map((c) => (c.type === 3 ? c.text : "")).join("")) : null;
-      const img = imgs ? first(imgs, (y) => y.tag === "img") : null;
-      const prev = x.parent.children[x.parent.children.indexOf(x) - 1];
-      if (img && !(prev && prev.type === 1 && prev.tag === "img" && realSrc(prev))) {
-        swaps.push([x, img]);
-      } else if (!first(x, (y) => y.tag === "img")) doomed.push(x);
-      else unwrap.push(x);
+      // lazy-loading pages put the real <img> inside <noscript>; keep it unless a loaded <img> precedes it
+      const siblings = x.parent.children.slice(0, x.parent.children.indexOf(x)).filter((c) => c.type === 1 || c.text.trim());
+      const prev = siblings[siblings.length - 1];
+      const hasImg = first(x, (y) => y.tag === "img");
+      if (hasImg && !(prev && prev.type === 1 && prev.tag === "img" && /^(https?:)?\/\/|^\//i.test(attr(prev, "src")))) unwrap.push(x);
+      else doomed.push(x);
       return false;
     }
     if (x.tag === "input" && attr(x, "type").toLowerCase() === "checkbox" && isInside(x, new Set(["li"]))) return;
@@ -571,6 +570,8 @@ function holdsArticle(node, total) {
   return total > 0 && stats(node).len > 0.35 * total;
 }
 
+const LINK_TAGS = new Set(["a"]);
+
 function stats(node) {
   // text length, link text length, commas (cached per extraction pass)
   if (node._stats) return node._stats;
@@ -580,7 +581,7 @@ function stats(node) {
       const t = x.text.replace(/\s+/g, " ");
       len += t.length;
       commas += (t.match(/[,،，]/g) || []).length;
-      if (isInside(x, new Set(["a"]))) linkLen += t.length;
+      if (isInside(x, LINK_TAGS)) linkLen += t.length;
     }
   });
   node._stats = { len, linkLen, commas, density: len ? linkLen / len : 0 };
@@ -768,12 +769,20 @@ function titleAttr(node) {
 function codeLanguage(pre) {
   const nodes = [pre, ...findAll(pre, (x) => x.tag === "code")];
   if (pre.parent) nodes.push(pre.parent);
+  if (pre.parent && pre.parent.parent) nodes.push(pre.parent.parent); // Sphinx: div.highlight-python > div.highlight > pre
   for (const n of nodes) {
     const dl = attr(n, "data-lang") || attr(n, "data-language") || attr(n, "lang");
     if (dl && /^[\w+#.-]{1,30}$/.test(dl)) return dl.toLowerCase();
-    const cls = attr(n, "class");
-    const m = /(?:^|\s)(?:language|lang|highlight-source|highlight|brush:?)-?\s*([\w+#.-]+)/i.exec(cls);
-    if (m && !/^(plaintext|none|text|nohighlight|js-file-line)$/i.test(m[1])) return m[1].toLowerCase();
+    const tokens = attr(n, "class").split(/\s+/);
+    for (let k = 0; k < tokens.length; k++) {
+      const t = tokens[k];
+      let m = /^(?:language|lang)-([\w+#.-]+)$/i.exec(t) || // Prism, highlight.js, CommonMark
+        /^highlight-(?:source|text)-([\w+#]+)/i.exec(t) || // GitHub: highlight-source-js, highlight-text-html-basic
+        /^highlight-(?!source|text)([\w+#]+)$/i.exec(t) || // Sphinx/Pygments: highlight-python
+        /^brush:([\w+#]+);?$/i.exec(t); // SyntaxHighlighter: brush:js
+      if (!m && /^brush:$/i.test(t) && tokens[k + 1]) m = [t, tokens[k + 1].replace(/;$/, "")];
+      if (m && !/^(plaintext|plain|none|text|nohighlight|default|notranslate)$/i.test(m[1])) return m[1].toLowerCase();
+    }
   }
   return "";
 }
@@ -876,7 +885,7 @@ class MarkdownConverter {
     const out = [];
     let inline = "";
     const flush = () => {
-      const t = inline.replace(/^(?: {2}\n|\s)+|(?: {2}\n|\s)+$/g, "");
+      const t = inline.replace(/(?: *\n){2,}/g, "\n\n").replace(/^(?: {2}\n|\s)+|(?: {2}\n|\s)+$/g, "");
       if (t) out.push({ text: ctx.inTable ? t : escapeLineStarts(t), kind: "p" });
       inline = "";
     };
@@ -1073,7 +1082,7 @@ class MarkdownConverter {
         if (r) s += r.block ? ` ${r.text.replace(/\n+/g, " ")} ` : r.text;
       }
     }
-    return s.replace(/ {2,}/g, " ");
+    return s.replace(/ {2,}(?!\n)/g, " "); // keep "  \n" hard breaks
   }
 
   link(x, ctx) {
@@ -1097,6 +1106,25 @@ class MarkdownConverter {
   }
 
   list(x, ctx) {
+    if (ctx.inTable) {
+      // GFM cells are one line: flatten (nested) lists into "• item" lines joined by <br>
+      const lines = [];
+      const collect = (list, depth) => {
+        for (const li of list.children) {
+          if (li.type !== 1) continue;
+          if (li.tag === "ul" || li.tag === "ol") {
+            collect(li, depth + 1);
+            continue;
+          }
+          const own = { children: li.children.filter((c) => !(c.type === 1 && (c.tag === "ul" || c.tag === "ol"))) };
+          const t = this.inline(own, ctx);
+          if (t) lines.push(`${"\u00a0\u00a0".repeat(depth)}• ${t}`);
+          for (const c of li.children) if (c.type === 1 && (c.tag === "ul" || c.tag === "ol")) collect(c, depth + 1);
+        }
+      };
+      collect(x, 0);
+      return lines.length ? { block: true, text: lines.join("\n"), kind: "list" } : null;
+    }
     const ordered = x.tag === "ol";
     let n = parseInt(attr(x, "start"), 10);
     if (isNaN(n)) n = 1;
@@ -1203,7 +1231,7 @@ class MarkdownConverter {
   convert(node) {
     collapseWhitespace(node);
     const md = this.children(node, { code: false, inTable: false });
-    return md.replace(/^[ \t]+$/gm, "").replace(/[ \t]+$/gm, (m, off, s) => (m === "  " && s[off + 2] === "\n" ? m : "")).replace(/\n{3,}/g, "\n\n").trim();
+    return md.replace(/^[ \t]+$/gm, "").replace(/ {2}\n(?=\n)/g, "\n").replace(/[ \t]+$/gm, (m, off, s) => (m === "  " && s[off + 2] === "\n" ? m : "")).replace(/\n{3,}/g, "\n\n").trim();
   }
 }
 

@@ -507,6 +507,13 @@
     {
       "id": "notify",
       "type": "notification"
+    },
+    {
+      "id": "notify_start",
+      "type": "notification",
+      "title": "Taking a screenshot…",
+      "text": "{query}",
+      "note": "Feedback while WebKit renders the page"
     }
   ],
   "connections": [
@@ -601,6 +608,20 @@
     {
       "from": "handoff",
       "to": "notify"
+    },
+    {
+      "from": "sf_shot",
+      "to": "notify_start"
+    },
+    {
+      "from": "sf_shot",
+      "to": "notify_start",
+      "mod": "cmd"
+    },
+    {
+      "from": "sf_shot",
+      "to": "notify_start",
+      "mod": "alt"
     }
   ]
 }

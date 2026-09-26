@@ -83,6 +83,13 @@ class Handler(BaseHTTPRequestHandler):
         if p == "/latin1":
             html = "<html><head><title>Caf\xe9</title></head><body><article><p>Caf\xe9 cr\xe8me \u2014 d\xe9j\xe0 vu. " + "Plenty of words to make this an article worth reading. " * 10 + "</p></article></body></html>"
             return self.send(200, html.encode("cp1252"), "text/html; charset=ISO-8859-1")
+        if p == "/badutf8":
+            body = "<html><head><meta charset='utf-8'><title>Bad bytes</title></head><body><article><p>Ünïcödé text — fine. ".encode() + b"\xff\xfe broken " + ("More words to read here. " * 20 + "</p></article></body></html>").encode()
+            return self.send(200, body, "text/html")
+        if p == "/feed.xml":
+            return self.send(200, '<?xml version="1.0"?><rss><channel><title>Feed</title></channel></rss>', "application/rss+xml")
+        if p == "/blob":
+            return self.send(200, b"\x00\x01binary", "application/octet-stream")
         if p == "/forbidden":
             return self.send(403, "<h1>Forbidden</h1>")
         if p == "/missing":
@@ -124,6 +131,10 @@ class Handler(BaseHTTPRequestHandler):
                      "agerestrict": "yt_player_age.json", "unavailabl1": "yt_player_unavailable.json", "botreason01": "yt_player_bot.json"}
             if vid == "ratelimit01":
                 return self.send(429, "{}", "application/json")
+            if vid == "amptitle001":
+                data = json.loads(fixture("yt_player_ok.json").replace("{BASE}", base))
+                data["videoDetails"]["title"] = "Rock &amp; Roll <3"
+                return self.send(200, json.dumps(data), "application/json")
             if vid == "emptytrack1":
                 data = json.loads(fixture("yt_player_ok.json").replace("{BASE}", base).replace("lang=en&fmt", "lang=empty&fmt"))
                 return self.send(200, json.dumps(data), "application/json")
@@ -332,6 +343,35 @@ class TomdTests(unittest.TestCase):
         self.assertEqual(it[0]["title"], "The server took too long to respond")
         self.assertEqual(sf("tomd", f"{BASE}/redirect-loop")[0]["title"], "Too many redirects")
 
+    def test_invalid_utf8_bytes_are_replaced_not_mojibake(self):
+        # audit 1: a UTF-8 page with a few bad bytes was decoded entirely as Windows-1252
+        md = md_of(sf("tomd", f"{BASE}/badutf8"))
+        self.assertIn("Ünïcödé text — fine.", md)
+        self.assertIn("\ufffd", md)
+
+    def test_feed_and_unknown_types(self):
+        # audit 1: RSS was converted as HTML, and "a application/octet-stream" read badly
+        md = md_of(sf("tomd", f"{BASE}/feed.xml"))
+        self.assertTrue(md.startswith("```xml\n<?xml"), md)
+        it = sf("tomd", f"{BASE}/blob")
+        self.assertEqual(it[0]["title"], "Not a web page: this URL is a file (application/octet-stream)")
+
+    def test_emoji_title_truncation(self):
+        # audit 1: cutting a long title at 120 UTF-16 units could split an emoji and break the file name
+        title = "x" * 119 + "🎉🎉"
+        html = f"<html><head><title>{title}</title></head><body><article><p>" + "Text. " * 60 + "</p></article></body></html>"
+        it = sf("tomd", "", WC_TEST_TAB=tab(f"{BASE}/emoji", html=html), tomd_browser_html="1")
+        name = os.path.basename(it[0]["quicklookurl"])
+        self.assertEqual(name, "x" * 119 + "🎉.md")
+        self.assertTrue(os.path.exists(it[0]["quicklookurl"]))
+
+    def test_save_with_private_cache_path(self):
+        # audit 1: /private/var and /var are the same folder; the cache check compared raw strings
+        it = sf("tomd", f"{BASE}/blog/coffee", alfred_workflow_cache="/private" + CACHE if CACHE.startswith("/var/") else CACHE)
+        alt = it[0]["mods"]["alt"]
+        msg = run("./webcapture.js", ["save", alt["arg"].replace("/private/var/", "/var/")], alfred_workflow_cache="/private" + CACHE if CACHE.startswith("/var/") else CACHE, save_name="private.md").strip()
+        self.assertTrue(msg.startswith("Saved private.md"), msg)
+
     def test_pdf_and_image(self):
         it = sf("tomd", f"{BASE}/doc.pdf")
         self.assertEqual(it[0]["title"], "Not a web page: this URL is a PDF")
@@ -504,6 +544,50 @@ class MarkdownTests(unittest.TestCase):
         self.assertIn("## History\n", md)
         self.assertNotIn("edit", md)
 
+    def test_turkish_capital_i_does_not_shift_the_parser(self):
+        # audit 1: "İ".toLowerCase() is 2 code units, which misaligned tag names after it
+        md = self.convert("<main><p>" + "İstanbul İzmir " * 30 + "</p><script>var x = '<p>no</p>';</script><h2>Başlık</h2><p>Sonraki paragraf, uzun bir metin.</p></main>")
+        self.assertIn("## Başlık", md)
+        self.assertIn("Sonraki paragraf", md)
+        self.assertNotIn("no</p>", md)
+
+    def test_double_br_paragraphs(self):
+        # audit 1: <br><br> paragraphs (paulgraham.com) left trailing double spaces
+        md = self.convert("<body><font>First paragraph, quite long.<br><br>Second paragraph.<br>Same paragraph.<br><br><br>Third.</font></body>", full=True)
+        self.assertIn("First paragraph, quite long.\n\nSecond paragraph.  \nSame paragraph.\n\nThird.", md)
+        self.assertNotRegex(md, r" +\n\n")
+
+    def test_code_language_classes(self):
+        # audit 1: "highlight highlight-text-html-basic" became the language "highlight-text-html-basic"
+        cases = {'<div class="highlight highlight-text-html-basic"><pre>&lt;p&gt;</pre></div>': "html",
+                 '<div class="highlight highlight-source-js"><pre>x</pre></div>': "js",
+                 '<div class="highlight-python notranslate"><div class="highlight"><pre>x</pre></div></div>': "python",
+                 '<pre class="brush: ruby;">x</pre>': "ruby",
+                 '<pre><code class="hljs language-go">x</code></pre>': "go",
+                 '<pre class="notranslate">x</pre>': ""}
+        for html, lang in cases.items():
+            md = self.convert(f"<body>{html}</body>", full=True)
+            self.assertIn(f"```{lang}\n", md, html)
+
+    def test_lists_in_table_cells(self):
+        # audit 1: nested lists in cells rendered as "- - item"
+        md = self.convert("<table><tr><th>K</th><th>V</th></tr><tr><td>Religion</td><td><ul><li>Christianity<ul><li>Protestant</li></ul></li><li>None</li></ul></td></tr></table>", full=True)
+        self.assertIn("| Religion | • Christianity<br>\u00a0\u00a0• Protestant<br>• None |", md)
+
+    def test_share_list_removed(self):
+        # audit 1: <ul>/<li>/<a> with junk classes (share bars) were never removed
+        body = "<p>Article text, long enough to be the article, with commas, and more.</p>" * 8
+        md = self.convert(f"<body><article>{body}<ul class='share-links'><li><a href='/t'>Twitter post</a></li><li>Email it</li></ul></article></body>")
+        self.assertNotIn("Twitter", md)
+        self.assertNotIn("Email it", md)
+
+    def test_noscript_duplicate_image(self):
+        # audit 1: an <img> followed by its <noscript> fallback appeared twice
+        body = "<p>Words for the article body, repeated to be long enough.</p>" * 6
+        md = self.convert(f"<body><article>{body}<img src='/a.jpg' alt='A'><noscript><img src='/a.jpg' alt='A'></noscript><img src='data:image/gif;base64,R0' data-src='' alt='B'><noscript><img src='/b.jpg' alt='B'></noscript></article></body>")
+        self.assertEqual(md.count("a.jpg"), 1)
+        self.assertEqual(md.count("b.jpg"), 1)
+
     def test_citation_not_double_emphasised(self):
         md = self.convert("<main><ol><li><cite>Smith (2020). <i>Journal</i>. Retrieved today.</cite></li></ol>" + "<p>Body text for the article, long enough.</p>" * 10 + "</main>")
         self.assertIn("1. Smith (2020). *Journal*. Retrieved today.", md)
@@ -653,6 +737,11 @@ class YouTubeTests(unittest.TestCase):
             self.assertEqual(it[0]["title"], title, vid)
             self.assertIs(it[0]["valid"], False)
 
+    def test_plain_title_not_entity_decoded(self):
+        # audit 1: videoDetails.title is plain text; decoding it turned "&amp;" into "&"
+        it = sf("ytt", "https://youtu.be/amptitle001")
+        self.assertEqual(it[0]["title"], "Rock &amp; Roll <3")
+
     def test_save_formats(self):
         it = sf("ytt", "https://youtu.be/okvideo0001")
         alt = it[0]["mods"]["alt"]
@@ -692,12 +781,18 @@ class YouTubeTests(unittest.TestCase):
         prefs = os.path.join(TMP, "Alfred.alfredpreferences")
         wf = os.path.join(prefs, "workflows", "user.workflow.1234")
         os.makedirs(wf, exist_ok=True)
-        with open(os.path.join(wf, "info.plist"), "wb") as f:
-            plistlib.dump({"bundleid": "io.github.x-o-r-r-o.local-ai", "name": "Local AI"}, f)
-        e = base_env(alfred_preferences=prefs)
-        del e["WC_TEST_LOCAL_AI"]
-        out = subprocess.run(["osascript", "-l", "JavaScript", "./webcapture.js", "ytt", "https://youtu.be/okvideo0001"], cwd=SRC, env=e, capture_output=True, text=True)
-        self.assertTrue(json.loads(out.stdout)["items"][0]["mods"]["ctrl"]["valid"])
+        def check(objects):
+            clear_cache()
+            with open(os.path.join(wf, "info.plist"), "wb") as f:
+                plistlib.dump({"bundleid": "io.github.x-o-r-r-o.local-ai", "name": "Local AI", "objects": objects}, f)
+            e = base_env(alfred_preferences=prefs)
+            del e["WC_TEST_LOCAL_AI"]
+            out = subprocess.run(["osascript", "-l", "JavaScript", "./webcapture.js", "ytt", "https://youtu.be/okvideo0001"], cwd=SRC, env=e, capture_output=True, text=True)
+            return json.loads(out.stdout)["items"][0]["mods"]["ctrl"]["valid"]
+        trigger = {"type": "alfred.workflow.trigger.external", "config": {"triggerid": "summarize"}, "uid": "X", "version": 1}
+        self.assertTrue(check([trigger]))
+        # audit 1: an installed Local AI without the "summarize" trigger can't be called
+        self.assertFalse(check([dict(trigger, config={"triggerid": "other"})]))
 
     def test_cache(self):
         n = len(requests_to("/watch"))
@@ -726,6 +821,11 @@ class BuildTests(unittest.TestCase):
         for v in variables - {"keyword_tomd", "keyword_shot", "keyword_code", "keyword_ytt"}:
             self.assertIn(f'"{v}"', sources, v)
         self.assertIn("## Usage", info["readme"])
+        # audit 1: screenshots take seconds, so a notification says it started
+        uids = {o["uid"]: o for o in info["objects"]}
+        shot = next(o["uid"] for o in info["objects"] if o["config"].get("keyword") == "{var:keyword_shot}")
+        targets = [uids[c["destinationuid"]]["type"] for c in info["connections"][shot]]
+        self.assertEqual(targets.count("alfred.workflow.output.notification"), 3)
         self.assertNotIn("images/", info["readme"])
 
     def test_no_binaries(self):
