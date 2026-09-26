@@ -86,6 +86,30 @@ class Handler(BaseHTTPRequestHandler):
         if p == "/badutf8":
             body = "<html><head><meta charset='utf-8'><title>Bad bytes</title></head><body><article><p>Ünïcödé text — fine. ".encode() + b"\xff\xfe broken " + ("More words to read here. " * 20 + "</p></article></body></html>").encode()
             return self.send(200, body, "text/html")
+        if p == "/gbk":  # audit 4: labelled gb2312, but uses GBK-only characters (as most Chinese pages do)
+            html = '<html><head><meta charset="gb2312"><title>中文</title></head><body><article><p>' + "中文字符 镕 喆 堃，这是一篇很长的文章。" * 20 + "</p></article></body></html>"
+            return self.send(200, html.encode("gbk"), "text/html")
+        if p == "/sjis":
+            html = '<html><head><meta charset="shift_jis"><title>日本語</title></head><body><article><p>' + "日本語の文章 ①② 髙島屋。" * 20 + "</p></article></body></html>"
+            return self.send(200, html.encode("cp932"), "text/html")
+        if p == "/meta-utf16":
+            html = '<html><head><meta charset="utf-16"><title>Caf\u00e9</title></head><body><article><p>' + "Caf\u00e9 cr\u00e8me, words for the article. " * 10 + "</p></article></body></html>"
+            return self.send(200, html.encode("utf-8"), "text/html")
+        if p == "/late-meta":
+            html = "<html><head><!--" + "x" * 6000 + '--><meta charset="windows-1251"><title>Кофе</title></head><body><article><p>' + CYRILLIC + "</p></article></body></html>"
+            return self.send(200, html.encode("cp1251"), "text/html")
+        if p == "/turkish":
+            html = '<html><head><meta charset="iso-8859-9"><title>T\u00fcrk\u00e7e</title></head><body><article><p>' + "T\u00fcrk\u00e7e \u2018quote\u2019 \u20ac, words for the article. " * 10 + "</p></article></body></html>"
+            return self.send(200, html.encode("cp1254"), "text/html")
+        if p == "/huge":
+            para = "<p>Huge page paragraph, with commas, and words to read, over and over again.</p>" * 30000
+            return self.send(200, f"<html><head><title>Huge</title></head><body><article>{para}</article></body></html>")
+        if p == "/busy-js":
+            return self.send(200, "<html><head><title>Busy</title></head><body><p>content</p><script>setTimeout(function(){while(true){}},200)</script></body></html>")
+        if p == "/dialogs":
+            return self.send(200, "<html><head><title>Dialogs</title></head><body><p>dialogs</p><script>alert('a');confirm('b');prompt('c');setInterval(function(){alert('again')},50)</script></body></html>")
+        if p == "/to-file":
+            return self.send(302, "", headers={"Location": "file:///etc/hosts"})
         if p == "/feed.xml":
             return self.send(200, '<?xml version="1.0"?><rss><channel><title>Feed</title></channel></rss>', "application/rss+xml")
         if p == "/blob":
@@ -136,6 +160,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, '<form><div class="g-recaptcha"></div></form>')
             if vid == "layoutchng1":
                 return self.send(200, "<html>new layout</html>")
+            if vid == "consentpage":
+                return self.send(200, '<html><form action="https://consent.youtube.com/s" method="POST"><input type="hidden" name="v" value="cb.2026"></form></html>')
             return self.send(200, fixture("yt_watch.html"))
         if p == "/youtubei/v1/player":
             vid = json.loads(body or b"{}").get("videoId", "")
@@ -147,6 +173,14 @@ class Handler(BaseHTTPRequestHandler):
                 data = json.loads(fixture("yt_player_ok.json").replace("{BASE}", base))
                 data["videoDetails"]["title"] = "Rock &amp; Roll <3"
                 return self.send(200, json.dumps(data), "application/json")
+            if vid == "potoken0001":  # audit 4: caption URLs marked exp=xpe need a PO token and come back empty
+                data = json.loads(fixture("yt_player_ok.json").replace("{BASE}", base).replace("lang=en&fmt=srv3", "lang=en&exp=xpe&fmt=srv3"))
+                return self.send(200, json.dumps(data), "application/json")
+            if vid == "membersonly":
+                return self.send(200, json.dumps({"playabilityStatus": {"status": "UNPLAYABLE", "reason": "Join this channel to get access to members-only content like this video, and other exclusive perks.",
+                                                  "errorScreen": {"playerErrorMessageRenderer": {"subreason": {"runs": [{"text": "Members-only content"}]}}}}}), "application/json")
+            if vid == "pagereason1":  # audit 4: "age" matched inside "page"
+                return self.send(200, json.dumps({"playabilityStatus": {"status": "UNPLAYABLE", "reason": "This content isn't available on this page"}}), "application/json")
             if vid == "emptytrack1":
                 data = json.loads(fixture("yt_player_ok.json").replace("{BASE}", base).replace("lang=en&fmt", "lang=empty&fmt"))
                 return self.send(200, json.dumps(data), "application/json")
@@ -376,6 +410,31 @@ class TomdTests(unittest.TestCase):
         md = md_of(sf("tomd", f"{BASE}/badutf8"))
         self.assertIn("Ünïcödé text — fine.", md)
         self.assertIn("\ufffd", md)
+
+    def test_charset_labels_use_browser_supersets(self):
+        # audit 4: GBK characters in a "gb2312" page (and CP932 in "shift_jis") turned the whole page into mojibake
+        md = md_of(sf("tomd", f"{BASE}/gbk"))
+        self.assertIn("中文字符 镕 喆 堃", md)
+        md = md_of(sf("tomd", f"{BASE}/sjis"))
+        self.assertIn("日本語の文章 ①② 髙島屋", md)
+        md = md_of(sf("tomd", f"{BASE}/turkish"))
+        self.assertIn("Türkçe ‘quote’ €", md)
+
+    def test_meta_utf16_and_late_meta(self):
+        # audit 4: <meta charset=utf-16> on a UTF-8 page gave CJK garbage; a <meta> after 4 KB was missed
+        self.assertIn("Café crème", md_of(sf("tomd", f"{BASE}/meta-utf16")))
+        it = sf("tomd", f"{BASE}/late-meta")
+        self.assertEqual(it[0]["title"], "Кофе")
+
+    def test_huge_page_skips_whole_page_version(self):
+        # audit 4: an 8 MB page took ~9 s because it was converted twice
+        it = sf("tomd", f"{BASE}/huge")
+        self.assertFalse(any(i["title"].startswith("Whole page") for i in it))
+        self.assertIn("Huge page paragraph", resolve(it[0]["arg"]))
+
+    def test_link_urls_are_encoded(self):
+        it = sf("tomd", f"{BASE}/doc.pdf?name=a(1)")
+        self.assertEqual(it[1]["arg"], f"[doc.pdf]({BASE}/doc.pdf?name=a%281%29)")
 
     def test_feed_and_unknown_types(self):
         # audit 1: RSS was converted as HTML, and "a application/octet-stream" read badly
@@ -654,6 +713,50 @@ class MarkdownTests(unittest.TestCase):
         md = self.convert("<body><p>super\u200blong\u200bword and\ufeff more</p></body>", full=True)
         self.assertIn("superlongword and more", md)
 
+    def test_unsafe_urls_never_become_links(self):
+        # audit 4: "java\nscript:" (newline inside), <img src=javascript:>, <video src=data:> and a javascript: <base> slipped through
+        md = self.convert('<p><a href="javascript:alert(1)">js</a> <a href=" java&#x0A;script:alert(1)">nl</a> <a href="JaVaScRiPt:x">mixed</a> '
+                          '<a href="vbscript:x">vb</a> <a href="data:text/html,x">data</a> <a href="file:///etc/passwd">file</a> '
+                          '<img src="javascript:x" alt="img"> <a href="mailto:a@b.c">mail</a> <a href="/ok">ok</a></p>'
+                          '<video src="javascript:x" poster="data:image/png,x"></video>', full=True)
+        for bad in ("javascript", "vbscript", "data:", "file:"):
+            self.assertNotIn(bad, md.lower())
+        self.assertIn("[mail](mailto:a@b.c)", md)
+        self.assertIn("[ok](https://example.com/ok)", md)
+        md = self.convert('<html><head><base href="javascript:alert(1)//"></head><body><a href="x">rel</a></body></html>', full=True)
+        self.assertIn("[rel](https://example.com/a/x)", md)
+        md = self.convert('<body><a href="javascript:void(0)"><h3>Card</h3><p>Summary</p></a></body>', full=True)
+        self.assertIn("### Card\n\nSummary", md)
+
+    def test_backslashes_in_urls_and_titles(self):
+        md = self.convert('<p><a href="https://x.com/a\\b" title="t\\">bs</a></p>', full=True)
+        self.assertIn('[bs](https://x.com/a%5Cb "t\\\\")', md)
+
+    def test_template_and_empty_comments(self):
+        # audit 4: <p> inside <template> closed the outer paragraph and leaked; "<!-->" swallowed the rest of the page
+        md = self.convert("<p>before<template><p>template text</p></template> after</p><!--><p>after empty comment</p><!---><p>two</p>", full=True)
+        self.assertNotIn("template text", md)
+        self.assertIn("before after", md)
+        self.assertIn("after empty comment\n\ntwo", md)
+
+    def test_table_delimiter_row_in_text_is_escaped(self):
+        md = self.convert("<p>a | b<br>--- | ---<br>c | d</p>", full=True)
+        self.assertIn("--- \\| ---", md)
+
+    def test_deeply_nested_lists_are_fast(self):
+        # audit 4: trimming trailing spaces with /[ \t]+$/gm was quadratic on deep list indentation (7 s)
+        start = time.time()
+        md = self.convert("<ul><li>" * 20000 + "deep", full=True)
+        self.assertLess(time.time() - start, 4)
+        self.assertIn("deep", md)
+        self.assertNotRegex(md, r"[ \t]+\n\n")
+
+    def test_many_removed_siblings_are_fast(self):
+        start = time.time()
+        md = self.convert("<body><article>" + "<span style='display:none'>x</span><p>Kept words, with commas.</p>" * 30000 + "</article></body>")
+        self.assertLess(time.time() - start, 15)
+        self.assertIn("Kept words", md)
+
     def write(self, html):
         path = os.path.join(TMP, "in2.html")
         with open(path, "w") as f:
@@ -734,6 +837,21 @@ class ShotTests(unittest.TestCase):
         out = run("./snapshot.js", [f"{BASE}/doc.pdf"], shot_width="320", shot_scale="1", shot_full="1", WC_TEST_SHOT_TIMEOUT="8").strip()
         self.assertTrue(out.startswith("OK ") or out.startswith("Screenshot failed"), out)
 
+    def test_busy_scripts_fail_fast(self):
+        # audit 4: a page stuck in a script made every evaluate() wait 5 s: over 100 s before failing
+        start = time.time()
+        out = run("./snapshot.js", [f"{BASE}/busy-js"], shot_width="320", shot_scale="1", WC_TEST_SHOT_TIMEOUT="5").strip()
+        self.assertLess(time.time() - start, 45)
+        self.assertTrue(out.startswith("Screenshot failed: The page’s scripts are not responding") or out.startswith("OK "), out)
+
+    def test_js_dialogs_do_not_block(self):
+        out = run("./snapshot.js", [f"{BASE}/dialogs"], shot_width="320", shot_scale="1", shot_full="0", WC_TEST_SHOT_TIMEOUT="8").strip()
+        self.assertTrue(out.startswith("OK "), out)
+
+    def test_redirect_to_file_is_refused(self):
+        out = run("./snapshot.js", [f"{BASE}/to-file"], shot_width="320", shot_scale="1", shot_full="0", WC_TEST_SHOT_TIMEOUT="8").strip()
+        self.assertTrue(out.startswith("Screenshot failed"), out)
+
     def test_errors(self):
         self.assertEqual(run("./snapshot.js", ["file:///etc/hosts"]).strip(), "Screenshot failed: not an http(s) URL")
         port = closed_port()
@@ -772,6 +890,12 @@ class CodeTests(unittest.TestCase):
         it = sf("code", "ja", WC_TEST_CLIPBOARD="print(1)")
         self.assertIn("java", [self.fragment(i["arg"]).get("language") for i in it])
         self.assertIn("javascript", [self.fragment(i["arg"]).get("language") for i in it])
+
+    def test_long_code_warning(self):
+        # audit 4: warn when the ray.so link passes 8 KB (was 20,000 characters of code)
+        it = sf("code", "", WC_TEST_CLIPBOARD="x = 1\n" * 1500)
+        self.assertIn("Long code (", it[0]["subtitle"])
+        self.assertNotIn("Long code", sf("code", "", WC_TEST_CLIPBOARD="x = 1")[0]["subtitle"])
 
     def test_typed_code_and_empty(self):
         it = sf("code", "let a = [1, 2]\nconsole.log(a)")
@@ -827,11 +951,32 @@ class YouTubeTests(unittest.TestCase):
     def test_errors(self):
         cases = {"nocaptions1": "No transcript: this video has no captions", "private0001": "Private video", "agerestrict": "Age-restricted video",
                  "unavailabl1": "Video unavailable", "botreason01": "YouTube asks to confirm you’re not a bot", "botcheck001": "YouTube asks to confirm you’re not a bot",
-                 "ratelimit01": "YouTube is rate-limiting this Mac (HTTP 429)", "layoutchng1": "Could not read the YouTube page", "emptytrack1": "The transcript is empty"}
+                 "ratelimit01": "YouTube is rate-limiting this Mac (HTTP 429)", "layoutchng1": "Could not read the YouTube page", "emptytrack1": "The transcript is empty",
+                 "potoken0001": "YouTube hides these captions from scripts", "consentpage": "YouTube shows its cookie consent page",
+                 "membersonly": "Members-only video", "pagereason1": "YouTube can’t play this video"}
         for vid, title in cases.items():
             it = sf("ytt", f"https://youtu.be/{vid}")
             self.assertEqual(it[0]["title"], title, vid)
             self.assertIs(it[0]["valid"], False)
+
+    def test_empty_transcript_offers_other_languages(self):
+        it = sf("ytt", "https://youtu.be/emptytrack1")
+        self.assertIn("pick another language", it[0]["subtitle"])
+        self.assertTrue(any(i["title"].startswith("German") for i in it[1:]))
+
+    def test_handoff_is_capped_for_argv(self):
+        # audit 4: Alfred passes the hand-off as argv; over ARG_MAX (1 MB) Local AI's script can't even start
+        log = os.path.join(TMP, "handoff-big.json")
+        big = os.path.join(CACHE, "big-handoff.txt")
+        os.makedirs(CACHE, exist_ok=True)
+        with open(big, "w") as f:
+            f.write(("字幕の文章です。" * 20 + "\n\n") * 3000)
+        run("./webcapture.js", ["handoff", f"wcfile:{big}"], WC_TEST_LOCAL_AI="1", WC_TEST_HANDOFF=log)
+        with open(log) as f:
+            arg = json.load(f)["argument"]
+        self.assertLessEqual(len(arg), 150100)
+        self.assertLess(len(arg.encode("utf-8")), 600000)
+        self.assertTrue(arg.endswith("[Transcript truncated: the rest was too long to hand over]"))
 
     def test_plain_title_not_entity_decoded(self):
         # audit 1: videoDetails.title is plain text; decoding it turned "&amp;" into "&"

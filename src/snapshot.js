@@ -58,8 +58,13 @@ function spin(seconds) {
   runLoop.runUntilDate($.NSDate.dateWithTimeIntervalSinceNow(seconds));
 }
 
+// One deadline for the whole capture: a page whose scripts never yield (while (true) {}) never answers,
+// and without it every evaluate() below waited its own 5 s (over 100 s in total).
+let deadline = Infinity, stalled = false;
+
 // Evaluate a constant JS expression in the page and wait for the result (never user data in the source).
 function evaluate(wv, source, timeout = 5) {
+  if (stalled || Date.now() >= deadline) return null;
   let done = false, result = null;
   wv.evaluateJavaScriptCompletionHandler(source, (r, e) => {
     try {
@@ -69,8 +74,9 @@ function evaluate(wv, source, timeout = 5) {
     }
     done = true;
   });
-  const end = Date.now() + timeout * 1000;
+  const end = Math.min(Date.now() + timeout * 1000, deadline);
   while (!done && Date.now() < end) spin(0.02);
+  if (!done) stalled = true; // the page's scripts are busy: stop asking
   return result;
 }
 
@@ -92,6 +98,24 @@ ObjC.registerSubclass({
   },
 });
 
+let view = null, window_ = null;
+// Stop the page (media, timers, network) and drop the off-screen window before writing the file.
+function cleanup() {
+  try {
+    if (view) {
+      view.stopLoading;
+      view.navigationDelegate = $();
+    }
+    if (window_) {
+      window_.orderOut($());
+      window_.contentView = $();
+    }
+  } catch (e) {
+    // the process exits right after: nothing else to release
+  }
+  view = window_ = null;
+}
+
 function capture(url, opts) {
   $.NSApplication.sharedApplication.setActivationPolicy($.NSApplicationActivationPolicyProhibited);
   const W = opts.width;
@@ -105,21 +129,28 @@ function capture(url, opts) {
   // An off-screen, borderless window gives WebKit a real backing store to draw into.
   const win = $.NSWindow.alloc.initWithContentRectStyleMaskBackingDefer($.NSMakeRect(-30000, -30000, W, VIEWPORT_H), 0, $.NSBackingStoreBuffered, false);
   win.contentView = wv;
+  win.releasedWhenClosed = false;
+  view = wv;
+  window_ = win;
   win.orderBack($());
   const nsurl = $.NSURL.URLWithString(url);
   if (nsurl.isNil()) return { error: "Invalid URL" };
   wv.loadRequest($.NSURLRequest.requestWithURLCachePolicyTimeoutInterval(nsurl, 0, opts.timeout));
 
-  const deadline = Date.now() + opts.timeout * 1000;
-  while (!navFinished && !navError && Date.now() < deadline) spin(0.05);
+  const loadEnd = Date.now() + opts.timeout * 1000;
+  deadline = loadEnd + 20000; // settling, scrolling and resizing get at most 20 s more
+  while (!navFinished && !navError && Date.now() < loadEnd) spin(0.05);
   if (navError) return { error: navError };
+  // WebKit already refuses http → file: redirects; never capture anything but a web page anyway
+  const landed = wv.URL.isNil() ? "" : wv.URL.absoluteString.js;
+  if (landed && !/^(https?:|about:blank)/i.test(landed)) return { error: "The page redirected to a non-web address" };
   if (!navFinished && wv.isLoading) {
     // pages that keep loading forever (streams, long polling) are captured if they have content
     const chars = Number(evaluate(wv, "document.body ? document.body.innerText.length : 0")) || 0;
-    if (!chars) return { error: `The page did not load within ${opts.timeout} s` };
+    if (!chars) return { error: stalled ? "The page’s scripts are not responding" : `The page did not load within ${opts.timeout} s` };
   }
   // Let late scripts, web fonts and images settle.
-  for (let i = 0; i < 40 && evaluate(wv, "document.readyState") !== "complete"; i++) spin(0.1);
+  for (let i = 0; i < 40 && !stalled && evaluate(wv, "document.readyState") !== "complete"; i++) spin(0.1);
   evaluate(wv, "document.fonts ? document.fonts.status : 'loaded'");
   spin(0.6);
 
@@ -128,7 +159,7 @@ function capture(url, opts) {
   if (opts.full) {
     // Scroll through the page once so lazy-loaded images appear.
     let h = Number(evaluate(wv, measure)) || VIEWPORT_H;
-    for (let y = 0; y < Math.min(h, opts.maxHeight); y += VIEWPORT_H * 0.8) {
+    for (let y = 0; y < Math.min(h, opts.maxHeight) && !stalled && Date.now() < deadline; y += VIEWPORT_H * 0.8) {
       evaluate(wv, `window.scrollTo(0, ${Math.round(y)})`);
       spin(0.12);
       h = Number(evaluate(wv, measure)) || h;
@@ -171,11 +202,15 @@ function capture(url, opts) {
     failure = e && !e.isNil() ? e.localizedDescription.js : null;
     done = true;
   });
-  const end = Date.now() + 60000;
+  // WebKit draws the snapshot in the page's process: a page stuck in a script never delivers it
+  const end = stalled ? Date.now() + 5000 : Math.max(deadline, Date.now() + 15000) + 30000;
   while (!done && Date.now() < end) spin(0.05);
-  if (!done) return { error: "WebKit did not return a snapshot" };
+  if (!done) return { error: stalled ? "The page’s scripts are not responding" : "WebKit did not return a snapshot" };
   if (!image || image.isNil()) return { error: failure || "WebKit returned an empty snapshot" };
-  const rep = $.NSBitmapImageRep.imageRepWithData(image.TIFFRepresentation);
+  // Straight from the CGImage: going through TIFFRepresentation made two more full-size copies
+  // (about 2 GB of memory for a 120-megapixel page instead of 600 MB).
+  const cg = image.CGImageForProposedRectContextHints(null, $(), $());
+  const rep = cg ? $.NSBitmapImageRep.alloc.initWithCGImage(cg) : $.NSBitmapImageRep.imageRepWithData(image.TIFFRepresentation);
   if (rep.isNil()) return { error: "Could not encode the snapshot" };
   const png = rep.representationUsingTypeProperties($.NSBitmapImageFileTypePNG, $());
   return { png, width: Number(rep.pixelsWide), height: Number(rep.pixelsHigh), title, capped: height >= opts.maxHeight || reduced };
@@ -207,6 +242,7 @@ function run(argv) {
   } catch (e) {
     r = { error: String(e && e.message ? e.message : e) };
   }
+  cleanup();
   if (r.error) return `Screenshot failed: ${r.error}`;
 
   const fm = $.NSFileManager.defaultManager;

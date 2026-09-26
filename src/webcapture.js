@@ -56,6 +56,7 @@ const MD = this.WCMarkdown;
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
 const LARGE = 50000; // Script Filter JSON stays small: larger results go through the cache
 const MAX_HTML = 8 * 1024 * 1024;
+const FULL_PAGE_MAX = 2 * 1024 * 1024; // larger pages get only the extracted article
 
 function timeout() {
   const n = parseInt(env("fetch_timeout", "20"), 10);
@@ -196,7 +197,23 @@ function httpError(status) {
   return `The server answered HTTP ${status}`;
 }
 
-// Decode bytes using the charset from the header, a BOM or <meta>; fall back to Windows-1252.
+// Labels that browsers decode with a superset encoding (WHATWG Encoding Standard). Decoding a GBK page as
+// strict GB2312 fails on the first GBK-only character, and the whole page then came out as mojibake.
+const CHARSET_ALIASES = [
+  [/^(iso-8859-1|iso8859-1|latin-?1|l1|us-ascii|ascii|cp819|ibm819|iso_8859-1(:1987)?)$/, "windows-1252"],
+  [/^(gb2312|gbk|x-gbk|chinese|csgb2312|gb_2312(-80)?|iso-ir-58|csiso58gb231280)$/, "gb18030"],
+  [/^(shift[_-]jis|sjis|x-sjis|ms_kanji|ms932|csshiftjis|windows-31j)$/, "windows-31j"],
+  [/^(euc-kr|ks_c_5601-19(87|89)|korean|csksc56011987|iso-ir-149|ksc_?5601|windows-949|cseuckr)$/, "windows-949"],
+  [/^(big5|x-x-big5|cn-big5|csbig5)$/, "big5-hkscs"],
+  [/^(iso-8859-9|iso8859-9|latin5|l5)$/, "windows-1254"],
+  [/^(iso-8859-11|iso8859-11|tis-620|dos-874)$/, "windows-874"],
+];
+function charsetAlias(name) {
+  for (const [re, to] of CHARSET_ALIASES) if (re.test(name)) return to;
+  return name;
+}
+
+// Decode bytes using the charset from the header, a BOM or <meta>; fall back to UTF-8, then Windows-1252.
 function decodeHTML(data, contentType) {
   const len = Number(data.length);
   const bytes = (n) => {
@@ -205,25 +222,27 @@ function decodeHTML(data, contentType) {
     for (let i = 0; i < s.length; i++) b.push(s.charCodeAt(i));
     return { b, s };
   };
-  const head = bytes(4096);
+  const head = bytes(32768); // <meta charset> can follow long comments or inline scripts
   let charset = "";
   if (head.b[0] === 0xef && head.b[1] === 0xbb && head.b[2] === 0xbf) charset = "utf-8";
   else if (head.b[0] === 0xff && head.b[1] === 0xfe) charset = "utf-16le";
   else if (head.b[0] === 0xfe && head.b[1] === 0xff) charset = "utf-16be";
   if (!charset) charset = (/charset\s*=\s*["']?([\w:.-]+)/i.exec(contentType || "") || [])[1] || "";
   if (!charset) {
-    const m = /<meta[^>]+charset\s*=\s*["']?\s*([\w:.-]+)/i.exec(head.s);
-    if (m) charset = m[1];
+    const headEnd = head.s.search(/<\/head\b|<body\b/i);
+    const m = /<meta[^>]+charset\s*=\s*["']?\s*([\w:.-]+)/i.exec(headEnd > 0 ? head.s.slice(0, headEnd) : head.s);
+    // a page that declares UTF-16 in <meta> is ASCII-compatible, so it is really UTF-8 (as browsers do)
+    if (m) charset = /^utf-?16/i.test(m[1]) ? "utf-8" : m[1];
   }
-  charset = charset.toLowerCase();
-  if (/^(iso-8859-1|latin-?1|us-ascii|ascii)$/.test(charset)) charset = "windows-1252"; // as browsers do
+  charset = charsetAlias(charset.toLowerCase());
   let enc = $.NSUTF8StringEncoding;
   if (charset && !/^utf-?8$/.test(charset)) {
     const cf = $.CFStringConvertIANACharSetNameToEncoding($(charset));
     if (cf !== 0xffffffff && cf !== -1) enc = $.CFStringConvertEncodingToNSStringEncoding(cf);
   }
   let s = dataToString(data, enc);
-  if (s === null && enc === $.NSUTF8StringEncoding) s = lossyUTF8(data);
+  if (s === null && enc !== $.NSUTF8StringEncoding) s = dataToString(data, $.NSUTF8StringEncoding); // wrong label
+  if (s === null) s = lossyUTF8(data);
   if (s === null) s = dataToString(data, 12 /* Windows-1252 */);
   if (s === null) s = dataToString(data, $.NSISOLatin1StringEncoding) || "";
   if (s.charCodeAt(0) === 0xfeff) s = s.slice(1);
@@ -511,7 +530,8 @@ function convertPage(src) {
     if (type && !/html|xml/.test(type)) {
       const kind = /pdf/.test(type) ? "PDF" : /^image\//.test(type) ? "image" : /^video\//.test(type) ? "video" : /^audio\//.test(type) ? "audio file" : `file (${type})`;
       const name = fileLabel(finalURL);
-      const link = /^image\//.test(type) ? `![${MD.escapeText(name)}](${finalURL})` : `[${MD.escapeText(name)}](${finalURL})`;
+      const target = MD.urlForMarkdown(finalURL);
+      const link = /^image\//.test(type) ? `![${MD.escapeText(name)}](${target})` : `[${MD.escapeText(name)}](${target})`;
       return {
         error: `Not a web page: this URL is a ${kind}`,
         subtitle: `${(size / 1024).toFixed(0)} KB · ${finalURL}`,
@@ -527,7 +547,8 @@ function convertPage(src) {
   }
   const captured = today();
   const main = MD.htmlToMarkdown(html, { url: finalURL, frontMatter, extract: true, captured });
-  const full = MD.htmlToMarkdown(html, { url: finalURL, frontMatter, extract: false, captured });
+  // The whole-page version doubles the time; on very large pages (seconds each in JavaScriptCore) it is skipped.
+  const full = html.length <= FULL_PAGE_MAX ? MD.htmlToMarkdown(html, { url: finalURL, frontMatter, extract: false, captured }) : { markdown: null, words: 0 };
   if (main.textLength < 200) {
     notes.push(src.from === "browser" && via === ""
       ? "Little text found: the page may need a login or JavaScript. Try “Use browser page content”"
@@ -606,7 +627,7 @@ function tomdItems(query) {
     it.icon = { path: "icons/page.png" };
     items.push(it);
   }
-  const link = `[${MD.escapeText(res.title)}](${res.url.replace(/\(/g, "%28").replace(/\)/g, "%29").replace(/ /g, "%20")})`;
+  const link = `[${MD.escapeText(res.title)}](${MD.urlForMarkdown(res.url)})`;
   items.push({
     title: "Markdown link",
     subtitle: oneLine(link),
@@ -699,6 +720,8 @@ function raySoURL(code, language) {
   return `https://ray.so/#${params.join("&")}`;
 }
 
+const RAY_WARN_BYTES = 8 * 1024;
+
 function codeItems(query) {
   const q = String(query || "");
   let text, language = null, source;
@@ -721,9 +744,10 @@ function codeItems(query) {
   const lines = code.split("\n").length;
   const theme = RAY_THEMES[env("code_theme", "candy")] || "Candy";
   const items = [];
-  const warn = code.length > 20000 ? "Long code: ray.so is made for snippets · " : "";
   const add = (lk, title) => {
     const url = raySoURL(code, lk);
+    // ray.so keeps the code in the link: long links are slow to open, hard to share, and make huge images
+    const warn = url.length > RAY_WARN_BYTES ? `Long code (${Math.round(url.length / 1024)} KB link): ray.so is made for snippets · ` : "";
     items.push({
       title,
       subtitle: `${warn}${plural(lines, "line")} ${source === "clipboard" ? "from the clipboard" : ""} · ${theme} · ${lk || "language auto-detected"} · ↩ Open · ⌘↩ Copy link`.replace(/ {2,}/g, " "),
@@ -831,15 +855,17 @@ function chooseTrack(tracks, prefs, preferAuto) {
   return { track: manual[0] || auto[0], fallback: true };
 }
 
-function youtubeError(status, reason) {
+function youtubeError(status, reason, subreason) {
   const r = String(reason || "");
+  const detail = [r, subreason].filter(Boolean).join(": ");
   if (/private/i.test(r)) return ["Private video", "Only its owner can see it, so there is no public transcript"];
-  if (/inappropriate|age/i.test(r)) return ["Age-restricted video", "YouTube requires signing in for its transcript"];
-  if (/not a bot|bot/i.test(r)) return ["YouTube asks to confirm you’re not a bot", "Try again later, or from another network"];
-  if (status === "LOGIN_REQUIRED") return ["YouTube requires signing in", r || "The transcript isn’t public"];
-  if (/unavailable|removed|terminated|does not exist/i.test(r) || status === "ERROR") return ["Video unavailable", r || "It may have been removed or the ID is wrong"];
-  if (status === "LIVE_STREAM_OFFLINE") return ["The live stream hasn’t started", r];
-  return ["YouTube can’t play this video", r || status];
+  if (/inappropriate|\bage\b|age-restricted/i.test(r)) return ["Age-restricted video", "YouTube requires signing in for its transcript"];
+  if (/not a bot|\bbot\b/i.test(r)) return ["YouTube asks to confirm you’re not a bot", "YouTube is blocking this network for now: try again in an hour, or from another network (a VPN often is blocked)"];
+  if (/members/i.test(detail)) return ["Members-only video", "Only channel members can see its transcript"];
+  if (status === "LOGIN_REQUIRED") return ["YouTube requires signing in", detail || "The transcript isn’t public"];
+  if (/unavailable|removed|terminated|does not exist/i.test(r) || status === "ERROR") return ["Video unavailable", detail || "It may have been removed or the ID is wrong"];
+  if (status === "LIVE_STREAM_OFFLINE") return ["The live stream hasn’t started", detail || "Try again once it has aired"];
+  return ["YouTube can’t play this video", detail || status];
 }
 
 // Fetch the transcript: watch page → Innertube player (ANDROID client, whose caption URLs need no PO token) → timedtext.
@@ -849,9 +875,12 @@ function fetchTranscript(id, prefs, preferAuto) {
   if (page.status === 429) return { error: "YouTube is rate-limiting this Mac (HTTP 429)", subtitle: "Try again later" };
   if (!page.ok) return { error: httpError(page.status) };
   const html = dataToString(page.data) || "";
-  if (/class="g-recaptcha"/.test(html)) return { error: "YouTube asks to confirm you’re not a bot", subtitle: "Try again later, or from another network" };
+  if (/class="g-recaptcha"/.test(html)) return { error: "YouTube asks to confirm you’re not a bot", subtitle: "YouTube is blocking this network for now: try again in an hour, or from another network" };
+  if (/action="https:\/\/consent\.youtube\.com\/s"/.test(html)) {
+    return { error: "YouTube shows its cookie consent page", subtitle: "Open youtube.com in your browser once and accept or reject cookies, then try again" };
+  }
   const key = (/"INNERTUBE_API_KEY":\s*"([\w-]+)"/.exec(html) || [])[1];
-  if (!key) return { error: "Could not read the YouTube page", subtitle: "YouTube may have changed: check for a workflow update" };
+  if (!key) return { error: "Could not read the YouTube page", subtitle: "YouTube may have changed its page: check for a Web Capture update" };
   const player = fetchURL(`${ytBase()}/youtubei/v1/player?key=${encodeURIComponent(key)}&prettyPrint=false`, {
     json: { context: { client: { clientName: "ANDROID", clientVersion: "20.10.38", hl: "en" } }, videoId: id },
     accept: "application/json",
@@ -877,19 +906,27 @@ function fetchTranscript(id, prefs, preferAuto) {
     seconds: parseInt(details.lengthSeconds, 10) || 0,
   };
   if (ps.status && ps.status !== "OK") {
-    const [error, subtitle] = youtubeError(ps.status, ps.reason);
+    const sub = ((((ps.errorScreen || {}).playerErrorMessageRenderer || {}).subreason || {}).runs || []).map((x) => x.text || "").join("");
+    const [error, subtitle] = youtubeError(ps.status, ps.reason, sub);
     return { error, subtitle, meta };
   }
   const tracks = (((data.captions || {}).playerCaptionsTracklistRenderer || {}).captionTracks || []).filter((t) => t.baseUrl);
   if (!tracks.length) return { error: "No transcript: this video has no captions", subtitle: meta.title, meta };
   const choice = chooseTrack(tracks, prefs, preferAuto);
+  // Caption URLs marked "exp=xpe" need a proof-of-origin token that only a real YouTube player can make
+  // (youtube-transcript-api reports these as PoTokenRequired); they return an empty document.
+  if (/[?&]exp=xpe\b/.test(choice.track.baseUrl)) {
+    return { error: "YouTube hides these captions from scripts", subtitle: "They need a token only the YouTube player can make: try again later, or copy the transcript from YouTube’s “Show transcript” panel", meta };
+  }
   let url = choice.track.baseUrl.replace(/&fmt=[^&]*/g, "");
   if (!/^https?:\/\//.test(url)) url = ytBase() + url;
   const tt = fetchURL(url, { headers: YT_HEADERS, accept: "*/*" });
   if (tt.curl) return { error: tt.error, meta };
   if (!tt.ok) return { error: tt.status === 429 ? "YouTube is rate-limiting this Mac (HTTP 429)" : httpError(tt.status), meta };
   const snippets = parseTimedText(dataToString(tt.data) || "");
-  if (!snippets.length) return { error: "The transcript is empty", subtitle: "YouTube returned no caption text", meta };
+  if (!snippets.length) {
+    return { error: "The transcript is empty", subtitle: `YouTube returned no caption text${tracks.length > 1 ? ": pick another language below" : ": try again later"}`, meta, others: tracks.filter((t) => t !== choice.track).map((t) => ({ code: t.languageCode, name: trackName(t), asr: t.kind === "asr" })) };
+  }
   let label = trackName(choice.track);
   if (choice.track.kind === "asr" && !/auto/i.test(label)) label += " (auto-generated)";
   if (choice.fallback) label = `No ${prefs.join("/")} captions: ${label}`;
@@ -924,6 +961,16 @@ function transcriptTexts(r) {
 // Is the Local AI workflow installed? Looks for its bundle id in Alfred's workflow folders (cached 10 min).
 const LOCAL_AI = "io.github.x-o-r-r-o.local-ai";
 const LOCAL_AI_TRIGGER = "summarize";
+// Alfred hands the argument to Local AI's script as argv, and macOS caps argv + environment at 1 MB
+// (ARG_MAX): 150,000 characters are at most ~450 KB of UTF-8. Local AI itself keeps 200,000 characters.
+const HANDOFF_MAX = 150000;
+function capHandoff(text) {
+  if (text.length <= HANDOFF_MAX) return text;
+  let cut = text.slice(0, HANDOFF_MAX);
+  if (/[\ud800-\udbff]$/.test(cut)) cut = cut.slice(0, -1); // never split an emoji
+  const para = cut.lastIndexOf("\n\n");
+  return `${para > HANDOFF_MAX * 0.8 ? cut.slice(0, para) : cut}\n\n[Transcript truncated: the rest was too long to hand over]`;
+}
 function localAIInstalled() {
   const fake = env("WC_TEST_LOCAL_AI", null);
   if (fake !== null) return fake === "1";
@@ -984,7 +1031,24 @@ function yttItems(query) {
     r = fetchTranscript(id, prefs, preferAuto);
     if (!r.error) writeFile(cachePath, JSON.stringify(r));
   }
-  if (r.error) return [info(r.error, r.subtitle || (r.meta ? r.meta.title : watchURL(id)), "error")];
+  // other caption languages, offered below the transcript (or below an error about the chosen one)
+  const languageRows = () => {
+    const rows = [], seen = new Set();
+    for (const o of r.others || []) {
+      const k = `${o.code}|${o.asr}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      rows.push({
+        title: `${o.name}${o.asr && !/auto/i.test(o.name) ? " (auto-generated)" : ""}`,
+        subtitle: `Show the ${o.code} transcript${o.asr ? " (auto-generated)" : ""}`,
+        autocomplete: `${urlToken || (src.from === "browser" ? "" : src.url)} ${o.code}${o.asr ? " auto" : ""}`.trim() + " ",
+        valid: false,
+        icon: { path: "icons/lang.png" },
+      });
+    }
+    return rows;
+  };
+  if (r.error) return [info(r.error, r.subtitle || (r.meta ? r.meta.title : watchURL(id)), "error")].concat(languageRows());
 
   const t = transcriptTexts(r);
   const format = env("ytt_save_format", "md") === "txt" ? "txt" : "md";
@@ -994,7 +1058,7 @@ function yttItems(query) {
   const plainArg = largeArg(t.plain, "yt");
   const stampedArg = largeArg(t.stamped, "yts");
   const ai = localAIInstalled();
-  const handoff = largeArg(`${r.meta.title}\n${watchURL(id)}\n\n${t.plain}`, "yth");
+  const handoff = largeArg(capHandoff(`${r.meta.title}\n${watchURL(id)}\n\n${t.plain}`), "yth");
   const folder = saveFolder().replace($.NSHomeDirectory().js, "~");
   const items = [{
     title: oneLine(r.meta.title),
@@ -1012,20 +1076,7 @@ function yttItems(query) {
         : { arg: handoff, valid: false, subtitle: "Install the Local AI workflow to summarize transcripts" },
     },
   }];
-  const seen = new Set();
-  for (const o of r.others || []) {
-    const k = `${o.code}|${o.asr}`;
-    if (seen.has(k)) continue;
-    seen.add(k);
-    items.push({
-      title: `${o.name}${o.asr && !/auto/i.test(o.name) ? " (auto-generated)" : ""}`,
-      subtitle: `Show the ${o.code} transcript${o.asr ? " (auto-generated)" : ""}`,
-      autocomplete: `${urlToken || (src.from === "browser" ? "" : src.url)} ${o.code}${o.asr ? " auto" : ""}`.trim() + " ",
-      valid: false,
-      icon: { path: "icons/lang.png" },
-    });
-  }
-  return items;
+  return items.concat(languageRows());
 }
 
 // ---------- actions ----------
@@ -1066,7 +1117,7 @@ function resolveArg(arg) {
 
 // ⌃↩: hand the transcript to the Local AI workflow through its External Trigger.
 function handoffAction(arg) {
-  const text = resolveArg(arg);
+  const text = capHandoff(resolveArg(arg));
   if (!text.trim()) return "Nothing to summarize";
   const log = env("WC_TEST_HANDOFF", ""); // tests record the call instead of calling Alfred
   if (!localAIInstalled()) return "Install the Local AI workflow to summarize transcripts";

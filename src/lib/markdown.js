@@ -60,7 +60,7 @@ function decodeEntities(s) {
 // p/li/dt/dd/tr/td/th/option, and stray end tags are ignored.
 
 const VOID = new Set("area base br col embed hr img input keygen link meta param source track wbr".split(" "));
-const RAW = new Set(["script", "style", "textarea", "title", "xmp", "iframe", "noembed", "noframes", "plaintext"]);
+const RAW = new Set(["script", "style", "textarea", "title", "xmp", "iframe", "noembed", "noframes", "plaintext", "template"]);
 const CLOSES_P = new Set(("address article aside blockquote center details dialog dir div dl fieldset figcaption figure footer " +
   "form h1 h2 h3 h4 h5 h6 header hgroup hr main menu nav ol p pre section table ul li dd dt search").split(" "));
 const BLOCK = new Set(("address article aside blockquote body center dd details dialog dir div dl dt fieldset figcaption figure " +
@@ -148,7 +148,8 @@ function parseHTML(html) {
     const c = html.charCodeAt(lt + 1);
     if (html.startsWith("<!--", lt)) {
       flushText(lt);
-      const end = html.indexOf("-->", lt + 4);
+      // "<!-->" and "<!--->" are complete (empty) comments, as in browsers
+      const end = html.startsWith(">", lt + 4) ? lt + 2 : html.startsWith("->", lt + 4) ? lt + 3 : html.indexOf("-->", lt + 4);
       i = textStart = end < 0 ? n : end + 3;
       continue;
     }
@@ -306,6 +307,21 @@ function remove(node) {
   node.parent = null;
 }
 
+// Remove many nodes at once: one pass per parent instead of indexOf + splice per node (quadratic).
+function removeAll(nodes) {
+  const parents = new Set();
+  for (const x of nodes) {
+    if (!x.parent) continue;
+    x._gone = true;
+    parents.add(x.parent);
+  }
+  for (const p of parents) p.children = p.children.filter((c) => !c._gone);
+  for (const x of nodes) {
+    if (x._gone) x.parent = null;
+    delete x._gone;
+  }
+}
+
 function replaceWithChildren(node) {
   const p = node.parent;
   if (!p) return;
@@ -329,6 +345,7 @@ function resolveURL(href, base) {
   href = String(href || "").trim().replace(/[\t\n\r]/g, "");
   if (!href) return "";
   if (/^[a-z][a-z0-9+.-]*:/i.test(href)) return href;
+  if (href.startsWith("\\") || href.startsWith("/\\")) href = href.replace(/\\/g, "/"); // browsers read "\\host" as "//host"
   const m = /^([a-z][a-z0-9+.-]*:)(\/\/[^/?#]*)?([^?#]*)(\?[^#]*)?(#.*)?$/i.exec(base || "");
   if (!m) return href;
   const [, scheme, authority = "", path = "/", query = ""] = m;
@@ -553,7 +570,7 @@ function prepare(root, base, light) {
       }
     }
   });
-  doomed.forEach(remove);
+  removeAll(doomed);
   unwrap.forEach(replaceWithChildren);
   clearStats(root);
   for (const [a, b] of swaps) {
@@ -675,7 +692,7 @@ function cleanContent(root) {
       }
     }
   });
-  doomed.forEach(remove);
+  removeAll(doomed);
 }
 
 function extractContent(doc, base) {
@@ -790,16 +807,26 @@ function escapeLineStarts(s) {
   return s.split("\n").map((line) => line
     .replace(/^(\s*)([#>+-])(?=\s|$)/, "$1\\$2")
     .replace(/^(\s*)(=+|-{3,})\s*$/, (m, sp, r) => sp + "\\" + r)
-    .replace(/^(\s*\d+)([.)])(?=\s|$)/, "$1\\$2")).join("\n");
+    .replace(/^(\s*\d+)([.)])(?=\s|$)/, "$1\\$2")
+    .replace(/^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/, (m) => (m.includes("|") ? m.replace(/\|/g, "\\|") : m))).join("\n");
 }
 
 function urlForMarkdown(u) {
-  return u.replace(/ /g, "%20").replace(/\(/g, "%28").replace(/\)/g, "%29").replace(/</g, "%3C").replace(/>/g, "%3E");
+  return u.replace(/ /g, "%20").replace(/\(/g, "%28").replace(/\)/g, "%29").replace(/</g, "%3C").replace(/>/g, "%3E").replace(/\\/g, "%5C");
+}
+
+// Only web, mail and phone links survive: javascript:, vbscript:, data:, file: and unknown schemes
+// (also when hidden with whitespace, control characters or entities) never become Markdown links.
+const SAFE_SCHEME = /^(https?|mailto|tel|ftp):/i;
+function safeURL(u) {
+  // as browsers do: trim C0 controls and spaces, drop tabs and newlines anywhere; then allow-list the scheme
+  const clean = String(u || "").replace(/^[\u0000-\u0020]+|[\u0000-\u0020]+$/g, "").replace(/[\t\n\r]/g, "");
+  return SAFE_SCHEME.test(clean) ? clean : "";
 }
 
 function titleAttr(node) {
   const t = cleanText(attr(node, "title"));
-  return t ? ` "${t.replace(/"/g, '\\"')}"` : "";
+  return t ? ` "${t.replace(/[\\"]/g, "\\$&")}"` : "";
 }
 
 function codeLanguage(pre) {
@@ -920,8 +947,10 @@ class MarkdownConverter {
     this.skippedTitle = false;
   }
 
+  // "" when the link is unsafe (javascript:, data:, file:…): callers then keep only the text
   url(u) {
-    return urlForMarkdown(resolveURL(u, this.base));
+    const safe = safeURL(resolveURL(u, this.base));
+    return safe ? urlForMarkdown(safe) : "";
   }
 
   // Convert children into blocks ({text, kind}); inline runs become paragraphs.
@@ -1051,7 +1080,8 @@ class MarkdownConverter {
         const img = first(x, (y) => y.tag === "img");
         if (img && realSrc(img)) return this.image(img);
         const src = first(x, (y) => y.tag === "source" && attr(y, "srcset"));
-        return src ? inl(`![${escapeText(cleanText(attr(img || {}, "alt")))}](${this.url(pickSrcset(attr(src, "srcset")))})`) : null;
+        const u = src ? this.url(pickSrcset(attr(src, "srcset"))) : "";
+        return u ? inl(`![${escapeText(cleanText(attr(img || {}, "alt")))}](${u})`) : null;
       }
       case "figure": {
         const parts = [];
@@ -1093,11 +1123,11 @@ class MarkdownConverter {
         return null;
       }
       case "video": case "audio": {
-        const src = attr(x, "src") || attr(first(x, (y) => y.tag === "source") || {}, "src");
+        const src = this.url(attr(x, "src") || attr(first(x, (y) => y.tag === "source") || {}, "src"));
         if (!src) return null;
-        const poster = attr(x, "poster");
+        const poster = this.url(attr(x, "poster"));
         const label = tag === "video" ? "Video" : "Audio";
-        return block(poster ? `[![${label}](${this.url(poster)})](${this.url(src)})` : `[${label}](${this.url(src)})`);
+        return block(poster ? `[![${label}](${poster})](${src})` : `[${label}](${src})`);
       }
       case "math": {
         const ann = first(x, (y) => y.tag === "annotation" && /tex/i.test(attr(y, "encoding")));
@@ -1131,11 +1161,12 @@ class MarkdownConverter {
 
   link(x, ctx) {
     const hrefRaw = attr(x, "href").trim();
-    if (hasBlockDescendant(x) && !ctx.inTable && hrefRaw && !/^(javascript|vbscript|data):/i.test(hrefRaw)) {
+    const href = hrefRaw ? this.url(hrefRaw) : ""; // "" for javascript:, data: and other unsafe links
+    if (hasBlockDescendant(x) && !ctx.inTable && !href) return { block: true, text: this.children(x, ctx) };
+    if (hasBlockDescendant(x) && !ctx.inTable && href) {
       // card links (<a><h3>Title</h3><p>Summary</p></a>): link the heading, keep the rest as blocks
       const blocks = this.blocks(x, ctx);
       if (!blocks.length) return null;
-      const href = this.url(hrefRaw);
       const b0 = blocks[0];
       const hm = /^(#{1,6} )(.*)$/s.exec(b0.text);
       if (hm) b0.text = `${hm[1]}[${hm[2]}](${href})`;
@@ -1145,20 +1176,19 @@ class MarkdownConverter {
     }
     const content = this.inlineKeepSpace(x, ctx);
     const text = content.trim();
-    if (!hrefRaw || /^(javascript|vbscript|data):/i.test(hrefRaw)) return { block: false, text: content };
+    if (!href && !(ctx.heading && hrefRaw.startsWith("#"))) return { block: false, text: content };
     if (!text) return { block: false, text: "" };
     // permalink anchors in headings ("## [Title](#title)", "¶", "#") add nothing
     if (ctx.heading && hrefRaw.startsWith("#")) return { block: false, text: /^[#¶§🔗\s]*$/u.test(cleanText(textOf(x))) ? "" : content };
-    const href = this.url(hrefRaw);
     const lead = /^\s/.test(content) ? " " : "", trail = /\s$/.test(content) ? " " : "";
     return { block: false, text: `${lead}[${text.replace(/ {2}\n/g, " ")}](${href}${titleAttr(x)})${trail}` };
   }
 
   image(img) {
-    const src = realSrc(img);
+    const src = this.url(realSrc(img));
     if (!src) return null;
     const alt = escapeText(cleanText(attr(img, "alt")));
-    return { block: false, text: `![${alt}](${this.url(src)}${titleAttr(img)})` };
+    return { block: false, text: `![${alt}](${src}${titleAttr(img)})` };
   }
 
   list(x, ctx) {
@@ -1186,7 +1216,15 @@ class MarkdownConverter {
     if (isNaN(n)) n = 1;
     const items = [];
     for (const li of x.children) {
-      if (li.type === 3) continue;
+      if (li.type === 3) {
+        // text straight inside <ul> (invalid, but browsers show it; also where over-deep nesting is flattened)
+        const t = li.text.trim();
+        if (t) {
+          if (items.length) items[items.length - 1] += " " + escapeText(t);
+          else items.push(escapeLineStarts(escapeText(t)));
+        }
+        continue;
+      }
       if (li.tag === "ul" || li.tag === "ol") {
         // a list directly nested in a list (invalid but common): indent it under the previous item
         const r = this.list(li, ctx);
@@ -1287,8 +1325,23 @@ class MarkdownConverter {
   convert(node) {
     collapseWhitespace(node);
     const md = this.children(node, { code: false, inTable: false });
-    return md.replace(/^[ \t]+$/gm, "").replace(/ {2}\n(?=\n)/g, "\n").replace(/[ \t]+$/gm, (m, off, s) => (m === "  " && s[off + 2] === "\n" ? m : "")).replace(/\n{3,}/g, "\n\n").trim();
+    return tidyLines(md).replace(/\n{3,}/g, "\n\n").trim();
   }
+}
+
+// Trim trailing spaces line by line, keeping "  " hard breaks that are followed by more text.
+// (A /[ \t]+$/gm regex is quadratic on the long indentation runs of deeply nested lists.)
+function tidyLines(md) {
+  const lines = md.split("\n");
+  for (let k = 0; k < lines.length; k++) {
+    const l = lines[k];
+    let e = l.length;
+    while (e > 0 && (l.charCodeAt(e - 1) === 32 || l.charCodeAt(e - 1) === 9)) e--;
+    if (e === l.length) continue;
+    const hardBreak = e > 0 && l.length - e === 2 && l.endsWith("  ") && k + 1 < lines.length && lines[k + 1].trim() !== "";
+    lines[k] = hardBreak ? l : l.slice(0, e);
+  }
+  return lines.join("\n");
 }
 
 function yamlString(s) {
@@ -1312,7 +1365,7 @@ function htmlToMarkdown(html, opts) {
   const doc = parseHTML(html);
   const meta = getMetadata(doc);
   let base = opts.url;
-  if (meta.base) base = resolveURL(meta.base, opts.url);
+  if (meta.base && /^https?:\/\//i.test(resolveURL(meta.base, opts.url))) base = resolveURL(meta.base, opts.url); // never a javascript: base
   let node, textLength;
   if (opts.extract === false) {
     node = first(doc, (x) => x.tag === "body") || doc;
@@ -1335,4 +1388,4 @@ function htmlToMarkdown(html, opts) {
 }
 
 // exported for webcapture.js (JXA has no modules; this file is evaluated in its scope)
-this.WCMarkdown = { parseHTML, decodeEntities, resolveURL, htmlToMarkdown, getMetadata, textOf, cleanText, first, byTag, attr, isoDate, escapeText, frontMatter, yamlString };
+this.WCMarkdown = { urlForMarkdown, safeURL, parseHTML, decodeEntities, resolveURL, htmlToMarkdown, getMetadata, textOf, cleanText, first, byTag, attr, isoDate, escapeText, frontMatter, yamlString };
