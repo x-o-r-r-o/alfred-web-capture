@@ -492,6 +492,9 @@ function convertPage(src) {
       return { error: httpError(r.status), subtitle };
     }
     finalURL = r.finalURL;
+    if (hostOf(finalURL) !== hostOf(src.url) || (/\b(log-?in|sign-?in|auth|consent|subscribe|register)\b/i.test(finalURL) && !/\b(log-?in|sign-?in|auth|consent|subscribe|register)\b/i.test(src.url))) {
+      notes.push(`Redirected to ${oneLine(finalURL.replace(/^https?:\/\//, ""), 60)}`);
+    }
     const type = r.contentType.split(";")[0].trim();
     const size = Number(r.data.length);
     if (TEXT_TYPES.test(type)) {

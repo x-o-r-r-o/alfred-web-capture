@@ -90,6 +90,18 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, '<?xml version="1.0"?><rss><channel><title>Feed</title></channel></rss>', "application/rss+xml")
         if p == "/blob":
             return self.send(200, b"\x00\x01binary", "application/octet-stream")
+        if p == "/members-story":
+            return self.send(302, "", headers={"Location": "/account/login?next=/story"})
+        if p == "/account/login":
+            return self.send(200, "<html><head><title>Sign in</title></head><body><form><p>" + "Please sign in to continue reading. " * 10 + "</p></form></body></html>")
+        if p == "/hang":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(b"<html><head><title>Live</title></head><body style='margin:0'><p>Streaming page</p>" + b" " * 2048)
+            self.wfile.flush()
+            time.sleep(8)
+            return
         if p == "/forbidden":
             return self.send(403, "<h1>Forbidden</h1>")
         if p == "/missing":
@@ -116,7 +128,7 @@ class Handler(BaseHTTPRequestHandler):
         if p == "/redirect-loop":
             return self.send(302, "", headers={"Location": "/redirect-loop"})
         if p == "/shot":
-            return self.send(200, '<html><body style="margin:0"><div style="height:2500px;background:linear-gradient(red,blue)">Tall</div></body></html>')
+            return self.send(200, '<html><head><title>Tall: “page”/test</title></head><body style="margin:0"><div style="height:2500px;background:linear-gradient(red,blue)">Tall</div></body></html>')
         # --- YouTube ---
         if p == "/watch":
             vid = q.get("v", [""])[0]
@@ -398,6 +410,14 @@ class TomdTests(unittest.TestCase):
         self.assertIn("Paragraph 2999:", md)
         self.assertGreater(len(md), 200000)
 
+    def test_redirect_to_login_is_reported(self):
+        # audit 2: a redirect to a sign-in page was converted silently
+        it = sf("tomd", f"{BASE}/members-story")
+        self.assertIn("Redirected to 127.0.0.1", it[0]["subtitle"])
+        self.assertIn("/account/login", it[0]["subtitle"])
+        it = sf("tomd", f"{BASE}/old-link")
+        self.assertNotIn("Redirected", it[0]["subtitle"])
+
     def test_cache(self):
         n = len(requests_to("/blog/coffee"))
         sf("tomd", f"{BASE}/blog/coffee")
@@ -588,6 +608,30 @@ class MarkdownTests(unittest.TestCase):
         self.assertEqual(md.count("a.jpg"), 1)
         self.assertEqual(md.count("b.jpg"), 1)
 
+    def test_card_links(self):
+        # audit 2: <a><h3>Title</h3><p>Summary</p></a> became "[### Title Summary](…)"
+        md = self.convert("<body><a href='/story'><h3>Big story</h3><p>What happened today.</p></a><a href='/two'><div><p>Card text only</p></div></a></body>", full=True)
+        self.assertIn("### [Big story](https://example.com/story)\n\nWhat happened today.", md)
+        self.assertIn("[Card text only](https://example.com/two)", md)
+
+    def test_title_heading_not_repeated_when_titles_differ_slightly(self):
+        # audit 2: og:title "X - Site" and <h1>X</h1> gave two headings
+        body = "<p>Long enough article paragraph with commas, words, and more words.</p>" * 6
+        md = run("./webcapture.js", ["convert", self.write(f"<html><head><title>Array.prototype.map() - JavaScript | MDN</title><meta property='og:title' content='Array.prototype.map() - JavaScript'></head><body><main><h1>Array.prototype.map()</h1>{body}<h2>Syntax</h2></main></body></html>"), "https://x.org/"], tomd_front_matter="0")
+        self.assertEqual(md.count("Array.prototype.map()"), 1)
+        self.assertIn("## Syntax", md)
+
+    def test_zero_width_space_removed(self):
+        # audit 2: U+200B became a space inside words
+        md = self.convert("<body><p>super\u200blong\u200bword and\ufeff more</p></body>", full=True)
+        self.assertIn("superlongword and more", md)
+
+    def write(self, html):
+        path = os.path.join(TMP, "in2.html")
+        with open(path, "w") as f:
+            f.write(html)
+        return path
+
     def test_citation_not_double_emphasised(self):
         md = self.convert("<main><ol><li><cite>Smith (2020). <i>Journal</i>. Retrieved today.</cite></li></ol>" + "<p>Body text for the article, long enough.</p>" * 10 + "</main>")
         self.assertIn("1. Smith (2020). *Journal*. Retrieved today.", md)
@@ -626,9 +670,26 @@ class ShotTests(unittest.TestCase):
 
     def test_max_height(self):
         out = run("./snapshot.js", [f"{BASE}/shot"], shot_width="320", shot_scale="1", shot_max_height="1000").strip()
-        self.assertIn("cut at the maximum height", out)
+        self.assertIn("cut to the maximum size", out)
         path = out[3:].split(" 320×")[0]
         self.assertEqual(self.png_size(path), (320, 1000))
+
+    def test_file_named_after_the_page_title(self):
+        # audit 2: screenshots were named after the host only
+        out = run("./snapshot.js", [f"{BASE}/shot"], shot_width="320", shot_scale="1", shot_full="0").strip()
+        self.assertRegex(os.path.basename(out[3:].split(" 320×")[0]), r"^Tall “page” test \d{4}-\d\d-\d\d at \d\d\.\d\d\.\d\d( \d+)?\.png$")
+
+    def test_pixel_budget(self):
+        # audit 2: 3840 px × 20000 px at 2× is a 1.2 GB bitmap; the scale, then the height, are reduced
+        out = run("./snapshot.js", [f"{BASE}/shot"], shot_width="400", shot_scale="2", WC_TEST_MAX_PIXELS="600000").strip()
+        self.assertIn("cut to the maximum size", out)
+        path = out[3:].split(" 400×")[0]
+        self.assertEqual(self.png_size(path), (400, 1500))
+
+    def test_page_that_never_finishes_loading(self):
+        # audit 2: a page that keeps streaming was reported as failed although it had content
+        out = run("./snapshot.js", [f"{BASE}/hang"], shot_width="320", shot_scale="1", shot_full="0", WC_TEST_SHOT_TIMEOUT="3").strip()
+        self.assertTrue(out.startswith("OK "), out)
 
     def test_copy_to_private_pasteboard(self):
         out = run("./snapshot.js", [f"{BASE}/shot"], shot_width="320", shot_scale="1", shot_action="copy", WC_TEST_NO_UI="", WC_TEST_PASTEBOARD="wc-test-pb").strip()

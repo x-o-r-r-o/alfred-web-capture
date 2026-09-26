@@ -826,7 +826,7 @@ function collapseWhitespace(root) {
     for (let k = 0; k < node.children.length; k++) {
       const x = node.children[k];
       if (x.type === 3) {
-        let t = x.text.replace(/[ \t\n\r\f\u200b]+/g, " ");
+        let t = x.text.replace(/[\u200b\ufeff]/g, "").replace(/[ \t\n\r\f]+/g, " ");
         if (atBoundary && t.startsWith(" ")) t = t.slice(1);
         x.text = t;
         if (!t) continue;
@@ -867,6 +867,14 @@ function collapseWhitespace(root) {
 // Concatenate inline Markdown without doubling the space between pieces ("[x] " + " Kettle").
 function joinInline(a, b) {
   return a.endsWith(" ") && !a.endsWith("  \n") && b.startsWith(" ") ? a + b.slice(1) : a + b;
+}
+
+// "Array.prototype.map()" and "Array.prototype.map() - JavaScript" are the same title.
+function sameTitle(a, b) {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const [short, long] = a.length < b.length ? [a, b] : [b, a];
+  return short.length >= 8 && short.length >= long.length * 0.5 && (long.startsWith(short) || long.endsWith(short));
 }
 
 class MarkdownConverter {
@@ -938,7 +946,7 @@ class MarkdownConverter {
       case "h1": case "h2": case "h3": case "h4": case "h5": case "h6": {
         const t = this.inline(x, Object.assign({}, ctx, { heading: true }));
         if (!t) return null;
-        if (!this.skippedTitle && this.title && cleanText(textOf(x)).toLowerCase() === this.title) {
+        if (!this.skippedTitle && this.title && sameTitle(cleanText(textOf(x)).toLowerCase(), this.title)) {
           this.skippedTitle = true; // the title is already the document heading
           return null;
         }
@@ -1087,6 +1095,18 @@ class MarkdownConverter {
 
   link(x, ctx) {
     const hrefRaw = attr(x, "href").trim();
+    if (hasBlockDescendant(x) && !ctx.inTable && hrefRaw && !/^(javascript|vbscript|data):/i.test(hrefRaw)) {
+      // card links (<a><h3>Title</h3><p>Summary</p></a>): link the heading, keep the rest as blocks
+      const blocks = this.blocks(x, ctx);
+      if (!blocks.length) return null;
+      const href = this.url(hrefRaw);
+      const b0 = blocks[0];
+      const hm = /^(#{1,6} )(.*)$/s.exec(b0.text);
+      if (hm) b0.text = `${hm[1]}[${hm[2]}](${href})`;
+      else if (b0.kind === "p") b0.text = `[${b0.text.replace(/\n+/g, " ")}](${href})`;
+      else blocks.push({ text: `[${escapeText(cleanText(textOf(x)).slice(0, 80)) || href}](${href})`, kind: "p" });
+      return { block: true, text: this.join(blocks) };
+    }
     const content = this.inlineKeepSpace(x, ctx);
     const text = content.trim();
     if (!hrefRaw || /^(javascript|vbscript|data):/i.test(hrefRaw)) return { block: false, text: content };

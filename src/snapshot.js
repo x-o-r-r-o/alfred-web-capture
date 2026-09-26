@@ -25,6 +25,7 @@ function num(name, fallback, min, max) {
 
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15";
 const VIEWPORT_H = 900;
+const MAX_PIXELS = Number(env("WC_TEST_MAX_PIXELS", "")) || 120e6; // the override is for tests
 
 function expandHome(p) {
   return p.replace(/^~(?=\/|$)/, $.NSHomeDirectory().js);
@@ -34,13 +35,15 @@ function pad(n) {
   return String(n).padStart(2, "0");
 }
 
-function fileName(url) {
+function fileName(url, title) {
   let host = "page";
   const m = url.match(/^https?:\/\/(?:www\.)?([^/:?#]+)/i);
   if (m) host = m[1];
+  const clean = Array.from(String(title || "").replace(/[\/\\:*?"<>|\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim().replace(/^\.+/, "")).slice(0, 80).join("").trim();
+  if (clean) host = clean;
   const d = new Date();
   const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} at ${pad(d.getHours())}.${pad(d.getMinutes())}.${pad(d.getSeconds())}`;
-  return `${host.replace(/[^\w.-]+/g, "-")} ${stamp}.png`;
+  return `${clean ? host : host.replace(/[^\w.-]+/g, "-")} ${stamp}.png`;
 }
 
 function uniquePath(dir, name) {
@@ -110,7 +113,11 @@ function capture(url, opts) {
   const deadline = Date.now() + opts.timeout * 1000;
   while (!navFinished && !navError && Date.now() < deadline) spin(0.05);
   if (navError) return { error: navError };
-  if (!navFinished && wv.isLoading) return { error: `The page did not finish loading within ${opts.timeout} s` };
+  if (!navFinished && wv.isLoading) {
+    // pages that keep loading forever (streams, long polling) are captured if they have content
+    const chars = Number(evaluate(wv, "document.body ? document.body.innerText.length : 0")) || 0;
+    if (!chars) return { error: `The page did not load within ${opts.timeout} s` };
+  }
   // Let late scripts, web fonts and images settle.
   for (let i = 0; i < 40 && evaluate(wv, "document.readyState") !== "complete"; i++) spin(0.1);
   evaluate(wv, "document.fonts ? document.fonts.status : 'loaded'");
@@ -144,7 +151,17 @@ function capture(url, opts) {
   const title = evaluate(wv, "document.title") || "";
 
   const backing = Number(win.backingScaleFactor) || 1;
-  const scale = opts.scale === "auto" ? backing : Number(opts.scale) || 1;
+  let scale = opts.scale === "auto" ? backing : Number(opts.scale) || 1;
+  // Keep the bitmap under ~120 megapixels (about 480 MB): lower the scale first, then the height.
+  let reduced = false;
+  while (scale > 1 && W * scale * height * scale > MAX_PIXELS) {
+    scale -= 1;
+    reduced = true;
+  }
+  if (W * height > MAX_PIXELS) {
+    height = Math.floor(MAX_PIXELS / W);
+    reduced = true;
+  }
   const sc = $.WKSnapshotConfiguration.alloc.init;
   sc.rect = $.NSMakeRect(0, 0, W, height);
   sc.snapshotWidth = $.NSNumber.numberWithDouble((W * scale) / backing);
@@ -161,7 +178,7 @@ function capture(url, opts) {
   const rep = $.NSBitmapImageRep.imageRepWithData(image.TIFFRepresentation);
   if (rep.isNil()) return { error: "Could not encode the snapshot" };
   const png = rep.representationUsingTypeProperties($.NSBitmapImageFileTypePNG, $());
-  return { png, width: Number(rep.pixelsWide), height: Number(rep.pixelsHigh), title, capped: height >= opts.maxHeight };
+  return { png, width: Number(rep.pixelsWide), height: Number(rep.pixelsHigh), title, capped: height >= opts.maxHeight || reduced };
 }
 
 function copyImage(png, path) {
@@ -182,7 +199,7 @@ function run(argv) {
     full: env("shot_full", "1") !== "0",
     scale: ["1", "2", "3"].includes(env("shot_scale", "auto")) ? env("shot_scale", "auto") : "auto",
     maxHeight: num("shot_max_height", 20000, 1000, 60000),
-    timeout: num("fetch_timeout", 30, 5, 120) + 10,
+    timeout: Number(env("WC_TEST_SHOT_TIMEOUT", "")) || num("fetch_timeout", 30, 5, 120) + 10,
   };
   let r;
   try {
@@ -200,12 +217,14 @@ function run(argv) {
     dir = expandHome(env("save_folder", "~/Downloads"));
   }
   fm.createDirectoryAtPathWithIntermediateDirectoriesAttributesError(dir, true, $(), $());
-  const path = uniquePath(dir, action === "copy" ? "screenshot.png" : fileName(url));
-  if (action === "copy" && fm.fileExistsAtPath(`${dir}/screenshot.png`)) fm.removeItemAtPathError(`${dir}/screenshot.png`, $());
-  const target = action === "copy" ? `${dir}/screenshot.png` : path;
+  let target;
+  if (action === "copy") {
+    target = `${dir}/screenshot.png`; // replaced each time: the clipboard holds the image
+    if (fm.fileExistsAtPath(target)) fm.removeItemAtPathError(target, $());
+  } else target = uniquePath(dir, fileName(url, r.title));
   if (!r.png.writeToFileAtomically(target, true)) return `Screenshot failed: could not write to ${dir}`;
 
-  const note = r.capped ? " (cut at the maximum height)" : "";
+  const note = r.capped ? " (cut to the maximum size)" : "";
   const size = `${r.width}×${r.height}`;
   if (env("WC_TEST_NO_UI", "") === "1") return `OK ${target} ${size}${note}`;
   if (action === "copy") {
