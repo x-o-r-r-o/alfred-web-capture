@@ -455,7 +455,9 @@ class TomdTests(unittest.TestCase):
     def test_network_errors(self):
         port = closed_port()
         it = sf("tomd", f"http://127.0.0.1:{port}/")
-        self.assertEqual(it[0]["title"], "Could not connect to the server")
+        self.assertEqual(it[0]["title"], "Can’t reach 127.0.0.1")
+        self.assertEqual(it[0]["subtitle"], "Check your internet connection")
+        self.assertEqual(it[0]["icon"]["path"], "icons/offline.png")
         it = sf("tomd", f"{BASE}/slow", fetch_timeout="3")
         self.assertEqual(it[0]["title"], "The server took too long to respond")
         self.assertEqual(sf("tomd", f"{BASE}/redirect-loop")[0]["title"], "Too many redirects")
@@ -955,16 +957,16 @@ class ShotTests(unittest.TestCase):
     def test_non_html_urls(self):
         # audit 3: images and PDFs must not hang the capture
         out = run("./snapshot.js", [f"{BASE}/pic.png"], shot_width="320", shot_scale="1", shot_full="0", WC_TEST_SHOT_TIMEOUT="8").strip()
-        self.assertTrue(out.startswith("OK ") or out.startswith("Screenshot failed"), out)
+        self.assertTrue(out.startswith("OK ") or out.startswith("Couldn’t take the screenshot"), out)
         out = run("./snapshot.js", [f"{BASE}/doc.pdf"], shot_width="320", shot_scale="1", shot_full="1", WC_TEST_SHOT_TIMEOUT="8").strip()
-        self.assertTrue(out.startswith("OK ") or out.startswith("Screenshot failed"), out)
+        self.assertTrue(out.startswith("OK ") or out.startswith("Couldn’t take the screenshot"), out)
 
     def test_busy_scripts_fail_fast(self):
         # audit 4: a page stuck in a script made every evaluate() wait 5 s: over 100 s before failing
         start = time.time()
         out = run("./snapshot.js", [f"{BASE}/busy-js"], shot_width="320", shot_scale="1", WC_TEST_SHOT_TIMEOUT="5").strip()
         self.assertLess(time.time() - start, 45)
-        self.assertTrue(out.startswith("Screenshot failed: The page’s scripts are not responding") or out.startswith("OK "), out)
+        self.assertTrue(out.startswith("Couldn’t take the screenshot: The page’s scripts are not responding") or out.startswith("OK "), out)
 
     def test_js_dialogs_do_not_block(self):
         out = run("./snapshot.js", [f"{BASE}/dialogs"], shot_width="320", shot_scale="1", shot_full="0", WC_TEST_SHOT_TIMEOUT="8").strip()
@@ -972,13 +974,13 @@ class ShotTests(unittest.TestCase):
 
     def test_redirect_to_file_is_refused(self):
         out = run("./snapshot.js", [f"{BASE}/to-file"], shot_width="320", shot_scale="1", shot_full="0", WC_TEST_SHOT_TIMEOUT="8").strip()
-        self.assertTrue(out.startswith("Screenshot failed"), out)
+        self.assertTrue(out.startswith("Couldn’t take the screenshot"), out)
 
     def test_errors(self):
-        self.assertEqual(run("./snapshot.js", ["file:///etc/hosts"]).strip(), "Screenshot failed: not an http(s) URL")
+        self.assertEqual(run("./snapshot.js", ["file:///etc/hosts"]).strip(), "Couldn’t take the screenshot: not an http(s) URL")
         port = closed_port()
         out = run("./snapshot.js", [f"http://127.0.0.1:{port}/"]).strip()
-        self.assertTrue(out.startswith("Screenshot failed:"), out)
+        self.assertTrue(out.startswith("Couldn’t take the screenshot:"), out)
 
 
 class CodeTests(unittest.TestCase):
@@ -1088,7 +1090,7 @@ class YouTubeTests(unittest.TestCase):
     def test_errors(self):
         cases = {"nocaptions1": "No transcript: this video has no captions", "private0001": "Private video", "agerestrict": "Age-restricted video",
                  "unavailabl1": "Video unavailable", "botreason01": "YouTube asks to confirm you’re not a bot", "botcheck001": "YouTube asks to confirm you’re not a bot",
-                 "ratelimit01": "YouTube is rate-limiting this Mac (HTTP 429)", "layoutchng1": "Could not read the YouTube page", "emptytrack1": "The transcript is empty",
+                 "ratelimit01": "YouTube is limiting requests (HTTP 429)", "layoutchng1": "Couldn’t read the YouTube page", "emptytrack1": "The transcript is empty",
                  "potoken0001": "YouTube hides these captions from scripts", "consentpage": "YouTube shows its cookie consent page",
                  "membersonly": "Members-only video", "pagereason1": "YouTube can’t play this video"}
         for vid, title in cases.items():

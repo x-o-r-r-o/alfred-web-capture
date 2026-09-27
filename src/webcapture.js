@@ -172,11 +172,9 @@ function dataToString(data, encoding = $.NSUTF8StringEncoding) {
 
 const CURL_ERRORS = {
   3: "The URL is malformed",
-  5: "Could not resolve the proxy",
-  6: "Could not find the server: check the address or your internet connection",
-  7: "Could not connect to the server",
+  5: "Couldn’t resolve the proxy",
   28: "The server took too long to respond",
-  35: "The secure connection failed",
+  35: "Couldn’t make a secure connection",
   47: "Too many redirects",
   52: "The server sent an empty reply",
   56: "The connection was interrupted",
@@ -211,17 +209,26 @@ function fetchURL(url, opts = {}) {
   if (postFile) FM.removeItemAtPathError(postFile, $());
   const status = parseInt(meta[0], 10) || 0;
   if (r.status !== 0) {
-    return { ok: false, status, curl: r.status, error: CURL_ERRORS[r.status] || `Network error (curl ${r.status})` };
+    return Object.assign({ ok: false, status, curl: r.status }, curlError(r.status, url));
   }
   return { ok: status >= 200 && status < 300, status, contentType: (meta[1] || "").toLowerCase(), finalURL: meta[2] || url, data: data.isNil() ? $.NSData.data : data };
 }
 
-function httpError(status) {
+// curl exit codes 6 (host not found) and 7 (no connection) are how being offline shows up: they name the
+// site's host, carry a hint for the subtitle and use the offline icon.
+function curlError(code, url) {
+  const host = hostOf(url);
+  if (code === 6) return { error: `Can’t find ${host}`, hint: "Check the address or your internet connection", icon: "offline" };
+  if (code === 7) return { error: `Can’t reach ${host}`, hint: "Check your internet connection", icon: "offline" };
+  return { error: CURL_ERRORS[code] || `Couldn’t connect to ${host} (curl ${code})` };
+}
+
+function httpError(status, host) {
   if (status === 401 || status === 403) return `Access denied (HTTP ${status})`;
   if (status === 404 || status === 410) return `Page not found (HTTP ${status})`;
-  if (status === 429) return "Too many requests (HTTP 429): try again later";
-  if (status >= 500) return `The server had an error (HTTP ${status})`;
-  return `The server answered HTTP ${status}`;
+  if (status === 429) return `${host || "The server"} is limiting requests (HTTP 429)`;
+  if (status >= 500) return `${host || "The server"} returned an error (HTTP ${status})`;
+  return `Couldn’t load the page (HTTP ${status})`;
 }
 
 // Labels that browsers decode with a superset encoding (WHATWG Encoding Standard). Decoding a GBK page as
@@ -538,7 +545,7 @@ function sourceURL(query, withHTML) {
   if (tab && tab.unscriptable) note = `${tab.unscriptable} can’t share its tab`;
   else if (tab && tab.error && /-1743|not (authorized|allowed) to send apple ?events/i.test(tab.error)) {
     note = `Allow Alfred to control ${tab.browser} in System Settings › Privacy & Security › Automation`;
-  } else if (tab && tab.error) note = `Could not read ${tab.browser}: ${oneLine(tab.error, 60)}`;
+  } else if (tab && tab.error) note = `Couldn’t read ${tab.browser}: ${oneLine(tab.error, 60)}`;
   else if (tab && tab.url) note = `The ${tab.browser} tab is not a web page`;
   const clip = asURL(clipboard().trim());
   if (clip && /^https?:\/\//i.test(clip)) return { url: clip, from: "clipboard", note };
@@ -590,12 +597,12 @@ function convertPage(src) {
       html = src.html;
       via = "page content from the browser";
     } else {
-      notes.push(`Could not read the page from ${src.browser}: turn on “Allow JavaScript from Apple Events”`);
+      notes.push(`Couldn’t read the page from ${src.browser}: turn on “Allow JavaScript from Apple Events”`);
     }
   }
   if (html === null) {
     const r = fetchURL(src.url);
-    if (r.curl) return { error: r.error, subtitle: src.url };
+    if (r.curl) return { error: r.error, subtitle: r.hint || src.url, icon: r.icon };
     if (!r.ok) {
       let subtitle = src.url;
       if (r.status === 401 || r.status === 403 || r.status === 429) {
@@ -603,7 +610,7 @@ function convertPage(src) {
           ? "The site blocks scripts or needs a login: turn on “Use browser page content” in the Workflow’s Configuration"
           : "The site blocks scripts or needs a login: open it in your browser and use the frontmost tab";
       }
-      return { error: httpError(r.status), subtitle };
+      return { error: httpError(r.status, hostOf(src.url)), subtitle };
     }
     finalURL = r.finalURL;
     if (hostOf(finalURL) !== hostOf(src.url) || (/\b(log-?in|sign-?in|auth|consent|subscribe|register)\b/i.test(finalURL) && !/\b(log-?in|sign-?in|auth|consent|subscribe|register)\b/i.test(src.url))) {
@@ -675,7 +682,7 @@ function tomdItems(query) {
   if (!res) {
     res = convertPage(src);
     if (res.error) {
-      const items = [info(res.error, res.subtitle, "error")];
+      const items = [info(res.error, res.subtitle, res.icon || "error")];
       return items.concat(res.items || []);
     }
     res.mdPath = `${dir}/${safeFileName(res.title, "md")}`;
@@ -879,6 +886,8 @@ function ytBase() {
 }
 
 const YT_BACKOFF = 600; // seconds without YouTube requests after a 429 or a bot check
+const YT_LIMITED = "YouTube is limiting requests (HTTP 429)";
+const YT_LIMITED_WAIT = `Try again in ${YT_BACKOFF / 60} minutes`;
 const YT_HEADERS = ["Cookie: CONSENT=YES+cb; SOCS=CAI"]; // skip the EU consent interstitial
 
 function timestamp(sec) {
@@ -970,25 +979,25 @@ function youtubeError(status, reason, subreason) {
 // Fetch the transcript: watch page → Innertube player (ANDROID client, whose caption URLs need no PO token) → timedtext.
 function fetchTranscript(id, prefs, preferAuto) {
   const page = fetchURL(`${ytBase()}/watch?v=${id}&hl=en`, { headers: YT_HEADERS });
-  if (page.curl) return { error: page.error };
-  if (page.status === 429) return { error: "YouTube is rate-limiting this Mac (HTTP 429)", subtitle: "Try again later", backoff: true };
-  if (!page.ok) return { error: httpError(page.status) };
+  if (page.curl) return { error: page.error, subtitle: page.hint, icon: page.icon };
+  if (page.status === 429) return { error: YT_LIMITED, subtitle: YT_LIMITED_WAIT, backoff: true };
+  if (!page.ok) return { error: httpError(page.status, "YouTube") };
   const html = dataToString(page.data) || "";
   if (/class="g-recaptcha"/.test(html)) return { error: "YouTube asks to confirm you’re not a bot", subtitle: "YouTube is blocking this network for now: try again in an hour, or from another network", backoff: true };
   if (/action="https:\/\/consent\.youtube\.com\/s"/.test(html)) {
     return { error: "YouTube shows its cookie consent page", subtitle: "Open youtube.com in your browser once and accept or reject cookies, then try again" };
   }
   const key = (/"INNERTUBE_API_KEY":\s*"([\w-]+)"/.exec(html) || [])[1];
-  if (!key) return { error: "Could not read the YouTube page", subtitle: "YouTube may have changed its page: check for a Web Capture update" };
+  if (!key) return { error: "Couldn’t read the YouTube page", subtitle: "YouTube may have changed its page: check for a Web Capture update" };
   const player = fetchURL(`${ytBase()}/youtubei/v1/player?key=${encodeURIComponent(key)}&prettyPrint=false`, {
     json: { context: { client: { clientName: "ANDROID", clientVersion: "20.10.38", hl: "en" } }, videoId: id },
     accept: "application/json",
     headers: YT_HEADERS,
     ua: "com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip",
   });
-  if (player.curl) return { error: player.error };
-  if (player.status === 429) return { error: "YouTube is rate-limiting this Mac (HTTP 429)", subtitle: "Try again later", backoff: true };
-  if (!player.ok) return { error: httpError(player.status) };
+  if (player.curl) return { error: player.error, subtitle: player.hint, icon: player.icon };
+  if (player.status === 429) return { error: YT_LIMITED, subtitle: YT_LIMITED_WAIT, backoff: true };
+  if (!player.ok) return { error: httpError(player.status, "YouTube") };
   let data;
   try {
     data = JSON.parse(dataToString(player.data) || "");
@@ -1020,8 +1029,8 @@ function fetchTranscript(id, prefs, preferAuto) {
   let url = choice.track.baseUrl.replace(/&fmt=[^&]*/g, "");
   if (!/^https?:\/\//.test(url)) url = ytBase() + url;
   const tt = fetchURL(url, { headers: YT_HEADERS, accept: "*/*" });
-  if (tt.curl) return { error: tt.error, meta };
-  if (!tt.ok) return { error: tt.status === 429 ? "YouTube is rate-limiting this Mac (HTTP 429)" : httpError(tt.status), meta, backoff: tt.status === 429 };
+  if (tt.curl) return { error: tt.error, subtitle: tt.hint, icon: tt.icon, meta };
+  if (!tt.ok) return { error: tt.status === 429 ? YT_LIMITED : httpError(tt.status, "YouTube"), meta, backoff: tt.status === 429 };
   const snippets = parseTimedText(dataToString(tt.data) || "");
   if (!snippets.length) {
     return { error: "The transcript is empty", subtitle: `YouTube returned no caption text${tracks.length > 1 ? ": pick another language below" : ": try again later"}`, meta, others: otherTracks(tracks, choice.track) };
@@ -1134,7 +1143,7 @@ function yttItems(query) {
     try {
       const b = JSON.parse(readFile(backoffPath));
       const mins = Math.max(1, Math.ceil((YT_BACKOFF - waited) / 60));
-      r = { error: String(b.error || "YouTube is rate-limiting this Mac"), subtitle: `Web Capture waits ${plural(mins, "more minute")} before asking YouTube again` };
+      r = { error: String(b.error || "YouTube is limiting requests"), subtitle: `Web Capture waits ${plural(mins, "more minute")} before asking YouTube again` };
     } catch (e) {
       r = null;
     }
@@ -1161,7 +1170,7 @@ function yttItems(query) {
     }
     return rows;
   };
-  if (r.error) return [info(r.error, r.subtitle || (r.meta ? r.meta.title : watchURL(id)), "error")].concat(languageRows());
+  if (r.error) return [info(r.error, r.subtitle || (r.meta ? r.meta.title : watchURL(id)), r.icon || "error")].concat(languageRows());
 
   const t = transcriptTexts(r);
   const format = env("ytt_save_format", "md") === "txt" ? "txt" : "md";
@@ -1216,7 +1225,7 @@ function saveAction(arg) {
   let target = `${dir}/${name}`, n = 2;
   while (exists(target)) target = `${dir}/${name.replace(/\.(\w+)$/, ` ${n++}.$1`)}`;
   const err = Ref();
-  if (!FM.copyItemAtPathToPathError(path, target, err)) return `Could not save to ${dir}`;
+  if (!FM.copyItemAtPathToPathError(path, target, err)) return `Couldn’t save to ${dir}`;
   return revealOrReport(target, `Saved ${name}`);
 }
 
@@ -1244,7 +1253,7 @@ function handoffAction(arg) {
     alfred.runTrigger(LOCAL_AI_TRIGGER, { inWorkflow: LOCAL_AI, withArgument: text });
     return undefined;
   } catch (e) {
-    return `Could not reach the Local AI workflow: ${oneLine(String(e.message || e), 80)}`;
+    return `Couldn’t reach the Local AI workflow: ${oneLine(String(e.message || e), 80)}`;
   }
 }
 

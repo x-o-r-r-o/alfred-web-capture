@@ -10,5 +10,6 @@
   "ytt": ["captions.bubble", "#DC2626"],
   "lang": ["globe", "#0D9488"],
   "info": ["info.circle", "#64748B"],
-  "error": ["exclamationmark.triangle", "#DC2626"]
+  "offline": ["wifi.slash", "#D97706"],
+  "error": ["exclamationmark.triangle.fill", "#DC2626"]
 }

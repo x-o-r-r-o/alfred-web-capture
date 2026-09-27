@@ -229,11 +229,11 @@ function capture(url, opts) {
   // (about 2 GB of memory for a 120-megapixel page instead of 600 MB).
   const cg = image.CGImageForProposedRectContextHints(null, $(), $());
   const rep = cg ? $.NSBitmapImageRep.alloc.initWithCGImage(cg) : $.NSBitmapImageRep.imageRepWithData(image.TIFFRepresentation);
-  if (rep.isNil()) return { error: "Could not encode the snapshot" };
+  if (rep.isNil()) return { error: "Couldn’t encode the snapshot" };
   const png = opts.format === "jpg"
     ? rep.representationUsingTypeProperties($.NSBitmapImageFileTypeJPEG, $({ NSImageCompressionFactor: 0.85 }))
     : rep.representationUsingTypeProperties($.NSBitmapImageFileTypePNG, $());
-  if (png.isNil()) return { error: "Could not encode the snapshot" };
+  if (png.isNil()) return { error: "Couldn’t encode the snapshot" };
   return { png, width: Number(rep.pixelsWide), height: Number(rep.pixelsHigh), title, capped: height >= opts.maxHeight || reduced };
 }
 
@@ -248,7 +248,7 @@ function copyImage(png, path, jpg) {
 
 function run(argv) {
   const url = argv[0] || "";
-  if (!/^https?:\/\/\S+$/i.test(url)) return "Screenshot failed: not an http(s) URL";
+  if (!/^https?:\/\/\S+$/i.test(url)) return "Couldn’t take the screenshot: not an http(s) URL";
   const action = env("shot_action", "reveal");
   const opts = {
     width: num("shot_width", 1280, 320, 3840),
@@ -266,7 +266,7 @@ function run(argv) {
     r = { error: String(e && e.message ? e.message : e) };
   }
   cleanup();
-  if (r.error) return `Screenshot failed: ${r.error}`;
+  if (r.error) return `Couldn’t take the screenshot: ${r.error}`;
 
   const fm = $.NSFileManager.defaultManager;
   let dir;
@@ -281,7 +281,7 @@ function run(argv) {
     target = `${dir}/screenshot.${opts.format}`; // replaced each time: the clipboard holds the image
     if (fm.fileExistsAtPath(target)) fm.removeItemAtPathError(target, $());
   } else target = uniquePath(dir, fileName(url, r.title).replace(/\.png$/, `.${opts.format}`));
-  if (!r.png.writeToFileAtomically(target, true)) return `Screenshot failed: could not write to ${dir}`;
+  if (!r.png.writeToFileAtomically(target, true)) return `Couldn’t save the screenshot to ${dir}`;
 
   const note = r.capped ? " (cut to the maximum size)" : "";
   const size = `${r.width}×${r.height}`;
